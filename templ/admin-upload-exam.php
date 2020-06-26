@@ -1,8 +1,8 @@
 <?php
 
-//if (! defined( 'ABSPATH' ) ){
-//    exit;
-//}
+if (! defined( 'ABSPATH' ) ){
+    exit;
+}
 
 // Get form meta data
 list($get_url, $login_nonce, $action_url) = apply_filters('gw_form_meta', 'gw-upload-exam-results', true);

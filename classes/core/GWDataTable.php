@@ -200,8 +200,7 @@ class GWDataTable
     protected function getActionStatus( $method, $is_status, $message = '' ){
         global $wpdb;
 
-        $this->legacyLogger($method); // Log all actions into a file
-
+        //$this->legacyLogger($method); // Log all actions into a file
         if( 0 == $is_status ){
             return array(
                 'method'   => $method,
@@ -213,7 +212,7 @@ class GWDataTable
         return array(
             'method'    => $method,
             'status'    => 'success',
-            'id'        => $wpdb -> insert_id );
+            'id'        => $wpdb->insert_id );
     }
 
     /**
@@ -314,7 +313,6 @@ class GWDataTable
                 'DEGREE_LEVEL' => $degree_level
             )
         );
-
         return $this->getActionStatus(__FUNCTION__, $action);
     }
 

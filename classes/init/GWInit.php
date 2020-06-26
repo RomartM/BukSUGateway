@@ -66,7 +66,7 @@ class GWInit {
             //'classes/core/GWEntriesManager.php',
             //'classes/core/GWAjaxResponder.php',
             'classes/views/GWTabs.php',
-            //'classes/views/GWEntriesTable.php',
+            'classes/views/GWEntriesTable.php',
             'overrides/caldera-form-hooks.php',
             //'views/server.php',
             //'views/image-resource.php'
@@ -161,31 +161,31 @@ class GWInit {
 
         $option = 'per_page';
         $args = array(
-            'label' => 'Form Entries',
-            'default' => 10,
+            'label' => 'Exam Results',
+            'default' => 40,
             'option' => 'gw_entries_per_page'
         );
         add_screen_option( $option, $args );
 
-        $link_forms_data = get_option( WP_GW_OPTION_PREFIX . "link_forms");
-        if(empty($link_forms_data)){
-            return;
-        }
-
-        $default_tab = GWUtility::instance()->format_group_name(array_values($link_forms_data)[0]['group']);
-        $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
-
-        $form_id = "";
-        $link_forms_data = get_option( WP_GW_OPTION_PREFIX . "link_forms");
-        foreach ($link_forms_data as $entry){
-            if($tab=== GWUtility::instance()->format_group_name($entry["group"])){
-                $form_id = $entry["cf_id"];
-
-            }
-        }
-
-        $form = Caldera_Forms_Forms::get_form(  $form_id );
-        $gwEntriesTable = new GWEntriesTable($form);
+//        $link_forms_data = get_option( WP_GW_OPTION_PREFIX . "link_forms");
+//        if(empty($link_forms_data)){
+//            return;
+//        }
+//
+//        $default_tab = GWUtility::instance()->format_group_name(array_values($link_forms_data)[0]['group']);
+//        $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
+//
+//        $form_id = "";
+//        $link_forms_data = get_option( WP_GW_OPTION_PREFIX . "link_forms");
+//        foreach ($link_forms_data as $entry){
+//            if($tab=== GWUtility::instance()->format_group_name($entry["group"])){
+//                $form_id = $entry["cf_id"];
+//
+//            }
+//        }
+//
+//        $form = Caldera_Forms_Forms::get_form(  $form_id );
+//        $gwEntriesTable = new GWEntriesTable($form);
     }
 
     /**

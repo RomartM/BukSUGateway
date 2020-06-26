@@ -250,7 +250,6 @@ class GWPostResponder
                           // Duplicate Checks Action
                           $record = $data_query->isExamResultDataExist($data_entry);
 
-
                           if($record[0]->count==0){
 
                               if(  !empty( $data_entry['EXAMINEE_NO'] ) &&
@@ -267,9 +266,9 @@ class GWPostResponder
                                   !empty( $data_entry['DEGREE_LEVEL'] )
                               ){
 
-                                  $data_query->insertExamResult($data_entry, $data_entry['DEGREE_LEVEL']);
+                                  $result = $data_query->insertExamResult($data_entry, $data_entry['DEGREE_LEVEL']);
 
-                                  if($data_query['id'] > 0){
+                                  if($result['id'] > 0){
                                       $totalInserted++;
                                   }
 
