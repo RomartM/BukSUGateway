@@ -66,6 +66,10 @@ class GWEntriesTable extends WP_List_Table
         return sprintf('%1$s %2$s', $item['examinee_no'], $this->row_actions($actions) );
     }
 
+    function no_items() {
+        _e( 'No exam entries found' );
+    }
+
     function get_bulk_actions() {
         $actions = array(
             'delete'    => 'Delete'
@@ -97,7 +101,7 @@ class GWEntriesTable extends WP_List_Table
         return ( $order === 'asc' ) ? $result : -$result;
     }
 
-    function prepare_items() {
+    function prepare_items($search='') {
 
         $example_data = array(
             array('ID' => 1,
@@ -120,17 +124,16 @@ class GWEntriesTable extends WP_List_Table
             ),
         );
 
-        $columns = $this->get_columns();
-        $hidden = array();
-        $sortable = $this->get_sortable_columns();
-        $this->_column_headers = array($columns, $hidden, $sortable);
+        $this->_column_headers = $this->get_column_info();
         usort( $example_data, array( &$this, 'usort_reorder' ) );
 
-        $per_page = 5;
+        $per_page = $this->get_items_per_page( 'gw_entries_per_page');
+
+        print_r($per_page);
+
         $current_page = $this->get_pagenum();
         $total_items = count($example_data);
 
-        // only ncessary because we have sample data
         $found_data = array_slice($example_data,(($current_page-1)*$per_page),$per_page);
 
         $this->set_pagination_args( array(

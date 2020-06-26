@@ -185,7 +185,7 @@ class GWInit {
 //        }
 //
 //        $form = Caldera_Forms_Forms::get_form(  $form_id );
-//        $gwEntriesTable = new GWEntriesTable($form);
+        $gwEntriesTable = new GWEntriesTable();
     }
 
     /**
@@ -197,6 +197,7 @@ class GWInit {
      * @return mixed
      */
     public function wp_gw_set_options($status, $option, $value) {
+
 
         if ( 'gw_entries_per_page' == $option ) return $value;
 

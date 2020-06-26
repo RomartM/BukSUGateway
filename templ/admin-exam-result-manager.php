@@ -4,12 +4,18 @@ if (! defined( 'ABSPATH' ) ){
     exit;
 }
 
-$examResultTable = new GWEntriesTable();
-$examResultTable->prepare_items();
 ?>
-<form method="post">
-    <input type="hidden" name="page" value="my_list_test" />
-    <?php $examResultTable->search_box('search', 'search_id'); ?>
-</form>
+    <form method="post" >
+        <?php
+        global $gwEntriesTable;
+
+        if( isset($_POST['s']) ){
+            $gwEntriesTable->prepare_items($_POST['s']);
+        } else {
+            $gwEntriesTable->prepare_items();
+        }
+        $gwEntriesTable -> search_box( 'search', 'search_id' );
+        $gwEntriesTable -> display();
+        ?>
+    </form>
 <?php
-$examResultTable->display();
