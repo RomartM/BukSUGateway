@@ -74,6 +74,7 @@ class GWShortCodes
     }
 
     public function get_course_list($atts){
+
         $attr_data = shortcode_atts( array(
             'college' => ''
         ), $atts );
@@ -106,7 +107,7 @@ class GWShortCodes
                             $href = add_query_arg( array(
                                 'page' => 'pass_course_apply',
                                 'course' => $get_slug_name,
-                            ), _gw_current_page_url(null) );
+                            ), GWUtility::_gw_current_page_url(null) );
 
                             ?>
                             <div class="gw-course-item gw-c-id-<?php the_ID(); ?> <?php  echo ($applied_course == $get_slug_name) ? 'gw-selected-course' : ''  ?>">
@@ -140,6 +141,8 @@ class GWShortCodes
     }
 
     public function breadcrumbs(){
+        // Do user validation
+        do_action('gw_validate_login', false, true); // Redirect to login if non authenticated
         $current_progress = apply_filters( 'gw_breadcrumbs_progress', null );
 
         $menu_list = array(
@@ -173,6 +176,9 @@ class GWShortCodes
     }
 
     public function current_course($atts){
+        // Validate and load course data
+        do_action('gw_validate_course_availability');
+
         shortcode_atts( array(
             'field' => ''
         ), $atts );
@@ -359,10 +365,6 @@ class GWShortCodes
                 return "No field selected";
                 break;
         }
-    }
-
-    public function _gw_render_shortcode($string){
-        return do_shortcode(stripslashes($string));
     }
 
     // Verification

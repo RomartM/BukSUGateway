@@ -13,8 +13,12 @@ class GWPostResponder
         add_action( 'admin_post_nopriv_gw_old_login', array( $this, 'old_student_login') );
         add_action( 'admin_post_gw_old_login', array( $this, 'old_student_login') );
 
+        // Upload data
+        add_action( 'admin_post_nopriv_gw_upload_exam_results', array( $this, 'upload_exam_results') );
+        add_action( 'admin_post_gw_upload_exam_results', array( $this, 'upload_exam_results') );
+
         // Filters
-        add_filter('gw_form_meta', array($this, 'form_metadata'));
+        add_filter('gw_form_meta', array($this, 'form_metadata'), 10, 2);
         add_filter('gw_format_date', array($this, 'format_date'));
         add_filter('gw_get_user', array($this, 'get_user'));
 
@@ -28,12 +32,12 @@ class GWPostResponder
         add_action('gw_validate_exam_status', array($this, 'validate_exam_status'));
     }
 
-    public function sanitizer($success_callback, $error_callback){
+    public function sanitizer($success_callback, $error_callback, $type='login'){
         if ( 'POST' === $_SERVER['REQUEST_METHOD'] ){
-            if( isset($_POST['gw_login_nonce']) ){
+            if( isset($_POST['gw_'. $type .'_nonce']) ){
                 $get_referer_url = 'gw_' .  wp_get_referer();
 
-                if( wp_verify_nonce($_POST['gw_login_nonce'], $get_referer_url ) ){
+                if( wp_verify_nonce($_POST['gw_'. $type .'_nonce'], $get_referer_url ) ){
                     return $success_callback();
                 }
                 return $error_callback('nonce_invalid');
@@ -106,16 +110,21 @@ class GWPostResponder
         );
     }
 
-    public function form_metadata($page){
+    public function form_metadata($page, $is_admin=false){
         global $wp;
-        $get_login_url =  add_query_arg( array(
-            'page' => $page
-        ), home_url( $wp->request ) . '/');
 
-        $login_nonce = wp_create_nonce( 'gw_' . $get_login_url );
+        if($is_admin){
+            $get_url = admin_url( "admin.php?page=".$_GET["page"] );
+        }else{
+            $get_url =  add_query_arg( array(
+                'page' => $page
+            ), home_url( $wp->request ) . '/');
+        }
+
+        $gw_nonce = wp_create_nonce( 'gw_' . $get_url );
         $action_url = esc_url( admin_url('admin-post.php') );
 
-        return array($get_login_url, $login_nonce, $action_url);
+        return array($get_url, $gw_nonce, $action_url);
     }
 
     public function get_user($data_entry){
@@ -191,6 +200,95 @@ class GWPostResponder
         }else{
             GWUtility::_gw_redirect( 'pass_fail', null, null );
         }
+    }
+
+    // Admin Core Functions
+    public function upload_exam_results(){
+        $this->sanitizer(
+          function (){ // Success
+              if(current_user_can( 'edit_users' )){
+                  // File extension
+                  $extension = pathinfo($_FILES['gw-import-file']['name'], PATHINFO_EXTENSION);
+                  // If file extension is 'csv'
+                  if(!empty($_FILES['gw-import-file']['name']) && $extension == 'csv') {
+
+                      $totalInserted = 0;
+
+                      // Open file in read mode
+                      $csvFile = fopen($_FILES['gw-import-file']['tmp_name'], 'r');
+
+                      fgetcsv($csvFile); // Skipping header row
+
+                      $data_query = new GWDataTable();
+
+                      // Read file
+                      while(($csvData = fgetcsv($csvFile)) !== FALSE){
+                          $csvData = array_map("utf8_encode", $csvData);
+
+                          // Row column length
+                          $dataLen = count($csvData);
+
+                          if( !($dataLen == 14) ) continue;
+
+                          $data_entry['EXAMINEE_NO'] = trim( $csvData[0] );
+                          $data_entry['EXAMINATION_DATE'] = trim( $csvData[1] );
+                          $data_entry['EXAMINATION_TIME'] = trim( $csvData[2] );
+                          $data_entry['EMAIL_ADDRESS'] = trim( $csvData[3] );
+                          $data_entry['LAST_NAME'] = trim( $csvData[4] );
+                          $data_entry['FIRST_NAME'] = trim( $csvData[5] );
+                          $data_entry['MIDDLE_NAME'] = trim( $csvData[6] );
+                          $data_entry['NAME_SUFFIX'] = trim( $csvData[7] );
+                          $data_entry['SEX'] = trim( $csvData[8] );
+                          $data_entry['BIRTHDATE'] = trim( $csvData[9] );
+                          $data_entry['CONTACT_NUMBER'] = trim( $csvData[10] );
+                          $data_entry['TOTAL'] = trim( $csvData[11] );
+                          $data_entry['PERCENT'] = trim( $csvData[12] );
+                          $data_entry['EXAM_STATUS'] = trim( $csvData[13] );
+
+                          $data_entry['DEGREE_LEVEL'] = trim( $_POST['gw-degree-type'] );
+
+                          // Duplicate Checks Action
+                          $record = $data_query->isExamResultDataExist($data_entry);
+
+
+                          if($record[0]->count==0){
+
+                              if(  !empty( $data_entry['EXAMINEE_NO'] ) &&
+                                  !empty( $data_entry['EXAMINATION_DATE'] ) &&
+                                  !empty( $data_entry['EXAMINATION_TIME'] ) &&
+                                  !empty( $data_entry['LAST_NAME'] ) &&
+                                  !empty( $data_entry['FIRST_NAME'] ) &&
+                                  !empty( $data_entry['SEX'] ) &&
+                                  !empty( $data_entry['BIRTHDATE'] ) &&
+                                  !empty( $data_entry['CONTACT_NUMBER'] ) &&
+                                  !empty( $data_entry['TOTAL'] ) &&
+                                  !empty( $data_entry['PERCENT'] ) &&
+                                  !empty( $data_entry['EXAM_STATUS'] ) &&
+                                  !empty( $data_entry['DEGREE_LEVEL'] )
+                              ){
+
+                                  $data_query->insertExamResult($data_entry, $data_entry['DEGREE_LEVEL']);
+
+                                  if($data_query['id'] > 0){
+                                      $totalInserted++;
+                                  }
+
+                              }
+                          }
+                      }
+                      echo "<h3 style='color: green;'>Total record Inserted : ".$totalInserted."</h3>";
+                  }else{
+                      print_r('Extension Invalid');
+                  }
+              }else{
+                  // Not Allowed
+                  print_r('Not Allowed');
+              }
+          },
+          function ($e){ // Post Error
+            print_r($e);
+          }, 'upload_exam'
+        );
     }
 
 }

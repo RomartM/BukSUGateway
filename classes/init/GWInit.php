@@ -65,9 +65,9 @@ class GWInit {
             //'classes/core/GWActivityCollector.php',
             //'classes/core/GWEntriesManager.php',
             //'classes/core/GWAjaxResponder.php',
-            'classes/views/GWTabs.php'//,
+            'classes/views/GWTabs.php',
             //'classes/views/GWEntriesTable.php',
-            //'overrides/caldera-hooks.php',
+            'overrides/caldera-form-hooks.php',
             //'views/server.php',
             //'views/image-resource.php'
         ));

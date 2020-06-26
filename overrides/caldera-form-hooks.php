@@ -8,7 +8,7 @@ add_filter( 'caldera_forms_pre_render_form', function( $html, $entry_id, $form )
         $remaining_slots = do_shortcode('[gw_current_course field="slots_number_available"]');
         if( $result ){
             //echo do_shortcode("[gw_applied_course field=\'course\']");
-            return _gw_render_shortcode('<div class="caldera-grid"><div class="alert alert-success">
+            return GWUtility::_gw_render_shortcode('<div class="caldera-grid"><div class="alert alert-success">
 				Your information has been successfully submitted. An enrollment officer will contact you through the phone number you provided.
 				[elementor-template id="627"]
 				[elementor-template id="617"]
@@ -82,7 +82,7 @@ add_filter('caldera_forms_ajax_return', function($out, $form){
     }
 
     // Render shortcode
-    $out['html'] = _gw_render_shortcode($out['html']);
+    $out['html'] = GWUtility::_gw_render_shortcode($out['html']);
 
     return $out;
 }, 10, 3);

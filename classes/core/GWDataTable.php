@@ -123,7 +123,7 @@ class GWDataTable
 
             $sql = "CREATE TABLE $this->exam_results_table_name (
                     id mediumint(11) NOT NULL AUTO_INCREMENT,
-                    INSERTION_TIME DEFAULT CURRENT_TIMESTAMP,
+                    INSERTION_TIME datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
                     EXAMINEE_NO varchar(80) NOT NULL,
                     EXAMINATION_DATE varchar(80) NOT NULL,
                     EXAMINATION_TIME varchar(80) NOT NULL,
@@ -206,7 +206,9 @@ class GWDataTable
             return array(
                 'method'   => $method,
                 'message'  => $message,
-                'status'   => 'error' );
+                'id'       => 0,
+                'status'   => 'error'
+            );
         }
         return array(
             'method'    => $method,
@@ -294,6 +296,7 @@ class GWDataTable
         $action = $wpdb->insert(
             $this->exam_results_table_name,
             array(
+                'INSERTION_TIME' => current_time( 'mysql' ),
                 'EXAMINEE_NO' => $entry['EXAMINEE_NO'],
                 'EXAMINATION_DATE' => $entry['EXAMINATION_DATE'],
                 'EXAMINATION_TIME' => $entry['EXAMINATION_TIME'],
@@ -361,16 +364,22 @@ class GWDataTable
     }
 
     /**
-     * Check if id number already exist
-     * @param $id_number
+     * Check if exam results already exist
+     * @param $data_entry
      * @return bool
      */
-    public function isExamResultDataExist($id_number){
+    public function isExamResultDataExist($data_entry){
         global $wpdb;
+        $cntSQL = "SELECT count(*) as count FROM {$this->exam_results_table_name} where
+              EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
+              EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
+              EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
+              BIRTHDATE='{$data_entry["BIRTHDATE"]}' AND
+              LAST_NAME='{$data_entry["LAST_NAME"]}' AND
+              FIRST_NAME='{$data_entry["FIRST_NAME"]}' AND 
+              DEGREE_LEVEL='{$data_entry["DEGREE_LEVEL"]}'";
 
-        $results  = $wpdb->get_results("SELECT * FROM ".  $this->exam_results_table_name ." WHERE id_number LIKE BINARY '".$id_number."'", ARRAY_N);
-
-        return (count($results) > 0);
+        return $wpdb->get_results($cntSQL, OBJECT);
     }
 
 }

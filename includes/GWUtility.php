@@ -137,6 +137,7 @@ class GWUtility {
             if ( current_user_can( $role ) )
                 return $role;
         endforeach;
+        return false;
     }
 
     public static function _gw_redirect($page, $query=null, $page_slug_name="", $url_to_redirect=null){
@@ -172,6 +173,11 @@ class GWUtility {
     public static function _gw_current_page_url($page_slug_name){
         global $wp;
         return home_url( $wp->request . $page_slug_name );
+    }
+
+    // Render Shortcode
+    public static function _gw_render_shortcode($string){
+        return do_shortcode(stripslashes($string));
     }
 
     // Data encryptions
