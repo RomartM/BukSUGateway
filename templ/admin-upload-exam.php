@@ -6,6 +6,7 @@ if (! defined( 'ABSPATH' ) ){
 
 // Get form meta data
 list($get_url, $login_nonce, $action_url) = apply_filters('gw_form_meta', 'gw-upload-exam-results', true);
+
 ?>
 <!-- Form -->
 <form method='post' action='<?php echo $action_url; ?>' enctype='multipart/form-data'>

@@ -49,33 +49,54 @@ class GWFrontEnd
                         do_action('gw_pass_process');
                         break;
                     case 'pass_success':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', true, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_success'), 1);
                         break;
                     case 'pass_fail':
+                        do_action('gw_validate_login', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_fail'), 1);
                         break;
                     case 'pass_welcome':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', true, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_welcome'), 2);
                         break;
+                    case 'update_contact_info':
+                        do_action('gw_validate_login', false, true);
+                        $this->gw_update_contact_info();
+                        exit();
+                        break;
                     case 'pass_courses':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', true, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_courses'), 2);
                         break;
                     case 'pass_course_apply':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', true, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_course_apply'), 2);
                         break;
                     case 'pass_course_pending':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', true, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_course_pending'), 2);
                         break;
                     case 'pass_course_success':
+                        do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_course_success'), 3);
                         break;
                     case 'pass_enrollment_fill':
+                        do_action('gw_validate_login', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_fill'), 3);
                         break;
                     case 'pass_enrollment_verify':
+                        do_action('gw_validate_login', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_verify'), 4);
                         break;
                     case 'pass_enrollment_welcome':
+                        do_action('gw_validate_login', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_welcome'), 5);
                         break;
                     default:
@@ -206,6 +227,10 @@ class GWFrontEnd
     public function gw_login_new_ui()
     {
         include WP_GW_ROOT . '/templ/gw-new-student-login.php';
+    }
+
+    public function gw_update_contact_info(){
+        include WP_GW_ROOT . '/templ/gw-new-student-update-contact.php';
     }
 
     // Did Passed UI

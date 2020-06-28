@@ -135,10 +135,16 @@ class GWDataTable
                     SEX varchar(80) NULL,
                     BIRTHDATE varchar(80) NULL,
                     CONTACT_NUMBER varchar(80) NULL,
+                    ADDRESS varchar(100) NULL,
                     TOTAL varchar(80) NOT NULL,
                     PERCENT varchar(80) NOT NULL,
                     EXAM_STATUS varchar(80) NOT NULL,
                     DEGREE_LEVEL varchar(80) NOT NULL,
+                    REQUESTED_COURSE_ID varchar(80) NULL,
+                    VALIDATION_REQUIREMENTS varchar(800) NULL,
+                    VALIDATION_STATUS varchar(80) NULL,
+                    VALIDATION_OFFICER varchar(80) NULL,
+                    VALIDATION_FEEDBACK varchar(300) NULL,
                     PRIMARY KEY (id)
                 ) $this->charset_collate;";
 
@@ -282,6 +288,70 @@ class GWDataTable
         return $this->getActionStatus(__FUNCTION__, $action);
     }
 
+    public function truncateExamResults(){
+      global $wpdb;
+
+      $action = $wpdb->query("TRUNCATE TABLE `{$this->exam_results_table_name}`");
+
+      return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
+    public function getUser($data_entry){
+      global $wpdb;
+
+      $query = "SELECT * FROM {$this->exam_results_table_name} where
+    		EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
+    		EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
+    		EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
+    		BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
+
+    	return $wpdb->get_results($query, OBJECT);
+    }
+
+    public function getExamEntries($items_per_page = 20, $current_page = 1, $search=null, $degree_level='college'){
+      global $wpdb;
+
+      $offset = ( $current_page * $items_per_page ) - $items_per_page;
+
+      $fields = 'id,
+        EXAMINEE_NO as examinee_no,
+        LAST_NAME as last_name,
+        FIRST_NAME as first_name,
+        REQUESTED_COURSE_ID as requested_course,
+        PERCENT as percent,
+        EXAM_STATUS as exam_status,
+        VALIDATION_STATUS as validation_status';
+
+      $query = "SELECT {$fields} FROM {$this->exam_results_table_name}";
+      $degree_level_query = "DEGREE_LEVEL like '{$degree_level}'";
+
+      if(!empty($search)){ // Implement search query
+        $search_keyword = sanitize_text_field($search);
+        $query.= " WHERE
+            (
+              EXAMINEE_NO LIKE '%{$search_keyword}%'
+              OR EMAIL_ADDRESS LIKE '%{$search_keyword}%'
+              OR LAST_NAME LIKE '%{$search_keyword}%'
+              OR FIRST_NAME LIKE '%{$search_keyword}%'
+              OR MIDDLE_NAME LIKE '%{$search_keyword}%'
+              OR NAME_SUFFIX LIKE '%{$search_keyword}%'
+              OR BIRTHDATE LIKE '%{$search_keyword}%'
+              OR CONTACT_NUMBER LIKE '%{$search_keyword}%'
+              AND {$degree_level_query}
+            )";
+      } else {
+        $query.= " WHERE {$degree_level_query}";
+      }
+
+      $total_query = "SELECT COUNT(1) FROM (${query}) AS combined_table";
+      $total = $wpdb->get_var( $total_query );
+
+      $action = $wpdb->get_results("{$query} ORDER BY id DESC LIMIT {$offset}, {$items_per_page}", ARRAY_A );
+
+      return array( "results"=>$action, "total"=>$total);
+      //return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
     /**
      * insertExamResult
      *
@@ -336,13 +406,13 @@ class GWDataTable
      * @param $status
      * @return array|string[]
      */
-    public function updateExamResultStatus($id_number, $status){
+    public function updateExamResultStatus($unique_id, $status){
         global $wpdb;
 
         $action = $wpdb-> update(
             $this->exam_results_table_name,
             array( 'status' => $status ),
-            array( 'id_number' => ucwords($id_number) ),
+            array( 'id' => ucwords($id_number) ),
             array( '%s', '%s' )
         );
 
@@ -355,10 +425,10 @@ class GWDataTable
      * @param $id_number
      * @return mixed
      */
-    public function getExamResultData($id_number){
+    public function getExamResultData($unique_id){
         global $wpdb;
 
-        return $wpdb->get_row("SELECT * FROM ".  $this->exam_results_table_name ." WHERE id_number LIKE BINARY '".$id_number."'", ARRAY_A);
+        return $wpdb->get_row("SELECT * FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
     }
 
     /**
@@ -374,10 +444,27 @@ class GWDataTable
               EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
               BIRTHDATE='{$data_entry["BIRTHDATE"]}' AND
               LAST_NAME='{$data_entry["LAST_NAME"]}' AND
-              FIRST_NAME='{$data_entry["FIRST_NAME"]}' AND 
+              FIRST_NAME='{$data_entry["FIRST_NAME"]}' AND
               DEGREE_LEVEL='{$data_entry["DEGREE_LEVEL"]}'";
 
         return $wpdb->get_results($cntSQL, OBJECT);
+    }
+
+    /**
+     * Check if exam results already exist
+     * @param $data_entry
+     * @return bool
+     */
+    public function isCourseApplicationExist($id, $examinee_number){
+        global $wpdb;
+        $cntSQL = "SELECT count(*) AS is_exist
+        FROM buksu_gateway_gw_exam_results
+         WHERE ID = '{$id}' AND
+         EXAMINEE_NO = '{$examinee_number}' AND
+         VALIDATION_STATUS IN ('pending', 'approved') AND
+         REQUESTED_COURSE_ID <> ''";
+
+        return $wpdb->get_results($cntSQL, OBJECT)[0]->{'is_exist'};
     }
 
 }

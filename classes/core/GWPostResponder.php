@@ -17,8 +17,20 @@ class GWPostResponder
         add_action( 'admin_post_nopriv_gw_upload_exam_results', array( $this, 'upload_exam_results') );
         add_action( 'admin_post_gw_upload_exam_results', array( $this, 'upload_exam_results') );
 
+        // Update Student Contact Self
+        add_action( 'admin_post_nopriv_gw_student_update_self', array( $this, 'gw_update_student_contact') );
+        add_action( 'admin_post_gw_student_update_self', array( $this, 'gw_update_student_contact') );
+
+        // Update Student Contact Admin
+        add_action( 'admin_post_nopriv_gw_student_update', array( $this, 'update_student_contact') );
+        add_action( 'admin_post_gw_student_update', array( $this, 'update_student_contact') );
+
+        // Update Student Request
+        add_action( 'admin_post_nopriv_gw_request_validation', array( $this, 'request_validation') );
+        add_action( 'admin_post_gw_request_validation', array( $this, 'request_validation') );
+
         // Filters
-        add_filter('gw_form_meta', array($this, 'form_metadata'), 10, 2);
+        add_filter('gw_form_meta', array($this, 'form_metadata'), 10, 3);
         add_filter('gw_format_date', array($this, 'format_date'));
         add_filter('gw_get_user', array($this, 'get_user'));
 
@@ -36,7 +48,6 @@ class GWPostResponder
         if ( 'POST' === $_SERVER['REQUEST_METHOD'] ){
             if( isset($_POST['gw_'. $type .'_nonce']) ){
                 $get_referer_url = 'gw_' .  wp_get_referer();
-
                 if( wp_verify_nonce($_POST['gw_'. $type .'_nonce'], $get_referer_url ) ){
                     return $success_callback();
                 }
@@ -67,6 +78,7 @@ class GWPostResponder
 
                     if(count($initial_user_data)!=0){
                         $user_data = array(
+                            'ID' => $initial_user_data[0]->{'id'},
                             'FIRST_NAME' => $initial_user_data[0]->{'FIRST_NAME'},
                             'MIDDLE_NAME' => $initial_user_data[0]->{'MIDDLE_NAME'},
                             'LAST_NAME' => $initial_user_data[0]->{'LAST_NAME'},
@@ -81,13 +93,14 @@ class GWPostResponder
                             'EXAMINATION_TIME' => $initial_user_data[0]->{'EXAMINATION_TIME'},
                             'EXAMINEE_NO' => $initial_user_data[0]->{'EXAMINEE_NO'},
                             'EXAM_STATUS' => $initial_user_data[0]->{'EXAM_STATUS'},
+                            'DEGREE_LEVEL' => $initial_user_data[0]->{'DEGREE_LEVEL'},
                             'PERCENT' => str_replace("%", "", $initial_user_data[0]->{'PERCENT'}),
                         );
                         $user_data['STUDENT_TYPE'] = 'new';
                         apply_filters('gw_session_set', $user_data, '/', ''); // Set session
                         GWUtility::_gw_redirect( 'pass_process', null, '/my/' );
                     }else{
-                        GWUtility::_gw_redirect( $referer_page['page'], 404, "", wp_get_referer() ); // User does not exists
+                        //GWUtility::_gw_redirect( $referer_page['page'], 404, "", wp_get_referer() ); // User does not exists
                     }
                 }else{
                     GWUtility::_gw_redirect( $referer_page['page'], 417, "", wp_get_referer() ); // All fields are reuired
@@ -110,15 +123,22 @@ class GWPostResponder
         );
     }
 
-    public function form_metadata($page, $is_admin=false){
+    public function form_metadata($page, $is_admin=false, $secret=null){
         global $wp;
 
         if($is_admin){
             $get_url = admin_url( "admin.php?page=".$_GET["page"] );
+            if(!empty($secret)){
+              $get_url.="&{$secret}";
+            }
         }else{
             $get_url =  add_query_arg( array(
                 'page' => $page
             ), home_url( $wp->request ) . '/');
+
+            if(!empty($secret)){
+              $get_url.="&{$secret}";
+            }
         }
 
         $gw_nonce = wp_create_nonce( 'gw_' . $get_url );
@@ -128,15 +148,8 @@ class GWPostResponder
     }
 
     public function get_user($data_entry){
-    	global $wpdb;
-
-    	$tablename = $wpdb->prefix."exam_results";
-    	$query = "SELECT * FROM {$tablename} where
-    		EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
-    		EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
-    		EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
-    		BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
-    	return $wpdb->get_results($query, OBJECT);
+    	$data_source = new GWDataTable();
+      return $data_source->getUser($data_entry);
     }
 
     public function session_validate(){
@@ -200,6 +213,47 @@ class GWPostResponder
         }else{
             GWUtility::_gw_redirect( 'pass_fail', null, null );
         }
+    }
+
+    public function gw_update_student_contact(){
+      //gw_student_update
+      $this->sanitizer(
+        function (){ // Success
+            if(apply_filters( 'gw_session_validate', null )){
+                if(
+                  isset($_POST['gw_student_update_email']) &&
+                  isset($_POST['gw_student_update_phone'])
+                ){
+                      $user_data = apply_filters( 'gw_current_user_login', null );
+                      $field_uid = $user_data->{'ID'};
+                      $field_email = sanitize_text_field($_POST['gw_student_update_email']);
+                      $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
+                      $field_address = sanitize_text_field($_POST['gw_student_update_address']);
+
+                      $entry_manager = new GWEntriesManager(1);
+
+                      $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
+                      $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
+                      $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
+
+                      $url_components = parse_url( wp_get_referer() );
+                      parse_str($url_components['query'], $params);
+                      $student_update_attr = sprintf("?page=%s",  $params['page']);
+                      $student_update_url = home_url('my/' . $student_update_attr);
+                      update_option('gw_user_updated', $updated_count);
+                      wp_redirect($student_update_url);
+                }else{
+                  print_r('Please fill in required fields');
+                }
+            }else{
+                // Not Allowed
+                print_r('Not Allowed');
+            }
+        },
+        function($e){
+          print_r($e);
+        }, 'student_update_self'
+      );
     }
 
     // Admin Core Functions
@@ -288,6 +342,86 @@ class GWPostResponder
             print_r($e);
           }, 'upload_exam'
         );
+    }
+
+    public function update_student_contact(){
+      //gw_student_update
+      $this->sanitizer(
+        function (){ // Success
+            if(current_user_can( 'edit_users' )){
+                if(
+                  isset($_POST['gw_student_uid']) &&
+                  isset($_POST['gw_student_update_email']) &&
+                  isset($_POST['gw_student_update_phone'])
+                ){
+                      $field_uid = sanitize_text_field($_POST['gw_student_uid']);
+                      $field_email = sanitize_text_field($_POST['gw_student_update_email']);
+                      $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
+                      $field_address = sanitize_text_field($_POST['gw_student_update_address']);
+
+                      $entry_manager = new GWEntriesManager(1);
+
+                      $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
+                      $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
+                      $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
+
+                      $url_components = parse_url( wp_get_referer() );
+                      parse_str($url_components['query'], $params);
+                      $student_update_attr = sprintf("?page=%s&sub=%s&id=%s&updated=%s",  $params['page'], $params['sub'], $params['id'], $updated_count);
+                      $student_update_url = admin_url("admin.php{$student_update_attr}");
+
+                      wp_redirect($student_update_url);
+                }else{
+                  print_r('Please fill in required fields');
+                }
+            }else{
+                // Not Allowed
+                print_r('Not Allowed');
+            }
+        },
+        function($e){
+          print_r($e);
+        }, 'student_update'
+      );
+    }
+
+    public function request_validation(){
+      //gw_student_update
+      $this->sanitizer(
+        function (){ // Success
+            if(current_user_can( 'edit_users' )){
+                if(
+                  isset($_POST['gw_student_uid']) &&
+                  isset($_POST['gw_enrollment_officer_feedback'])
+                ){
+                      $field_uid = sanitize_text_field($_POST['gw_student_uid']);
+                      $gw_enrollment_officer_feedback = sanitize_text_field($_POST['gw_enrollment_officer_feedback']);
+                      $submit_action = array_keys($_POST['submit']);
+                      $action = sanitize_text_field($submit_action[0]);
+
+                      $entry_manager = new GWEntriesManager(1);
+
+                      $updated_count+= $entry_manager->update_entry_feedback($field_uid, $gw_enrollment_officer_feedback);
+                      $updated_count+= $entry_manager->validate_entry($field_uid, strtolower($action)); // Action Type
+
+                      $url_components = parse_url( wp_get_referer() );
+                      parse_str($url_components['query'], $params);
+                      $student_update_attr = sprintf("?page=%s&sub=%s&id=%s",  $params['page'], $params['sub'], $params['id']);
+                      $student_update_url = admin_url("admin.php{$student_update_attr}");
+
+                      wp_redirect($student_update_url);
+                }else{
+                  print_r('Please fill in required fields');
+                }
+            }else{
+                // Not Allowed
+                print_r('Not Allowed');
+            }
+        },
+        function($e){
+          print_r($e);
+        }, 'request_validation'
+      );
     }
 
 }

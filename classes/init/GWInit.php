@@ -58,13 +58,13 @@ class GWInit {
         GWUtility::instance()->load_classes(array(
             'classes/core/GWDataTable.php',
             'classes/core/GWShortCodes.php',
-            'classes/core/GWFrontEnd.php',
             'classes/core/GWPostResponder.php',
             //'classes/core/GWResponseFilter.php',
             //'classes/core/GWResultGenerator.php',
             //'classes/core/GWActivityCollector.php',
-            //'classes/core/GWEntriesManager.php',
+            'classes/core/GWEntriesManager.php',
             //'classes/core/GWAjaxResponder.php',
+            'classes/core/GWFrontEnd.php',
             'classes/views/GWTabs.php',
             'classes/views/GWEntriesTable.php',
             'overrides/caldera-form-hooks.php',
@@ -218,28 +218,6 @@ class GWInit {
         wp_register_script( 'gw-admin', WP_GW_URL . 'assets/admin/js/gw-script.js', array('jquery', 'jquery-ui-dialog') );
         wp_localize_script( 'gw-admin', 'gwAjax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' )));
 
-        // Link Form Settings Assets
-        wp_register_style( 'gw-admin-link-forms', WP_GW_URL . 'assets/admin/css/gw-link-forms-style.css' );
-        wp_register_script( 'gw-admin-link-forms', WP_GW_URL . 'assets/admin/js/gw-link-forms-script.js', array('jquery') );
-
-        // Form Filter Settings Assets
-        wp_register_style( 'gw-admin-form-filters', WP_GW_URL . 'assets/admin/css/gw-form-filters-style.css', array( 'wp-jquery-ui-dialog' ) );
-        wp_register_script( 'gw-admin-form-filters', WP_GW_URL . 'assets/admin/js/gw-form-filters-script.js', array('jquery',  'jquery-ui-dialog') );
-        wp_localize_script( 'gw-admin-form-filters', 'gwAjax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' ),
-            'action' => 'gw_form_filters', 'nonce' => wp_create_nonce('gw_form_filters_'.$current_user->user_login ),
-            'equality_operators' => array(
-                array('label' => 'Equal (=)', 'value' => '=='),
-                array('label' => 'Greater Than (>)', 'value' => '>'),
-                array('label' => 'Less Than (<)', 'value' => '<'),
-                array('label' => 'Greater Than or Equal (>=)', 'value' => '>='),
-                array('label' => 'Less Than or Equal (<=)', 'value' => '<=')
-            )));
-
-        // Form Response Settings Assets
-        wp_register_style( 'gw-admin-form-response', WP_GW_URL . 'assets/admin/css/gw-form-response-style.css', array( 'wp-jquery-ui-dialog' ) );
-        wp_register_script( 'gw-admin-form-response', WP_GW_URL . 'assets/admin/js/gw-form-response-script.js', array('jquery',  'jquery-ui-dialog') );
-        wp_localize_script( 'gw-admin-form-response', 'gwAjax', array( 'ajaxurl' => admin_url( 'admin-ajax.php' ),
-            'action' => 'gw_form_response', 'nonce' => wp_create_nonce('gw_form_filters_'.$current_user->user_login )));
     }
 
     /**

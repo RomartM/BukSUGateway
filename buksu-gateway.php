@@ -47,56 +47,7 @@ if ( ! class_exists( 'GWInit' ) ) {
 // Initialize the QR Pass class
 $init = new GWInit();
 
+// $d = new GWDataTable(); // Truncate Exam Results Table
+// $d->truncateExamResults();
+
 //$init->wp_gw_activate(); //Force Upgrade Database
-
-////////////////////////////// OLD
-
-
-//// Global Prefixes
-//
-//define('PLUGIN_PREFIX', 'gw_');
-//// Create a new table
-//function plugin_table(){
-//
-//    global $wpdb;
-//    $charset_collate = $wpdb->get_charset_collate();
-//
-//    $tablename = $wpdb->prefix."exam_results";
-//
-//    $sql = "CREATE TABLE $tablename (
-//     id mediumint(11) NOT NULL AUTO_INCREMENT,
-//     EXAMINEE_NO varchar(80) NOT NULL,
-//     EXAMINATION_DATE varchar(80) NOT NULL,
-//     EXAMINATION_TIME varchar(80) NOT NULL,
-//     EMAIL_ADDRESS varchar(80) NULL,
-//     LAST_NAME varchar(80) NULL,
-//     FIRST_NAME varchar(80) NULL,
-//     MIDDLE_NAME varchar(80) NULL,
-//     NAME_SUFFIX varchar(80) NULL,
-//     SEX varchar(80) NULL,
-//     BIRTHDATE varchar(80) NULL,
-//     CONTACT_NUMBER varchar(80) NULL,
-//     TOTAL varchar(80) NOT NULL,
-//     PERCENT varchar(80) NOT NULL,
-//     EXAM_STATUS varchar(80) NOT NULL,
-//     STUDENT_LEVEL varchar(80) NOT NULL,
-//     PRIMARY KEY (id)
-//   ) $charset_collate;";
-//
-//    require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-//    dbDelta( $sql );
-//
-//}
-//register_activation_hook( __FILE__, 'plugin_table' );
-//
-// Add menu
-function plugin_menu() {
-
-    add_menu_page("BukSU Gateway", "BukSU Gateway","manage_options", "gateway", "displayList",plugins_url('/myplugin/img/icon.png'));
-
-}
-add_action("admin_menu", "plugin_menu");
-
-function displayList(){
-    include "displaylist.php";
-}

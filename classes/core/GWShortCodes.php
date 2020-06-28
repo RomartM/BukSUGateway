@@ -13,7 +13,10 @@ class GWShortCodes
 
         // Verifications
         add_action('gw_validate_course_availability', array( $this, 'validate_course_availability'));
+        add_action('gw_validate_request_status', array( $this, 'validate_request_status'), 10, 2);
         add_filter('gw_validate_submitted_information', array( $this, 'validate_submitted_information'));
+        add_filter('gw_get_course_meta', array( $this, '_gw_course_meta_by_slug' ), 10, 3);
+        add_filter('gw_get_course_meta_id', array( $this, '_gw_course_meta_by_id' ), 10, 3);
 
         // Shortcodes
 
@@ -86,19 +89,26 @@ class GWShortCodes
             'orderby' => 'title',
             'category_name' => $attr_data['college'],
         );
+        echo "<style>.gw-course-wrapper > .gw-noti {
+    font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif !important;
+}</style>";
         // query
         $the_query = new WP_Query( $args );
-
+        $course_count = 0;
         ?>
         <?php if( $the_query->have_posts() ): ?>
-            <div class="gw-college-sc">
+            <div class="gw-college-sc gw-item-<?php echo $the_query->get('category_name'); ?>" >
                 <div class="gw-college-label"><h4><?php echo $attr_data['college']; ?></h4></div>
-                <div class="gw-course-wrapper gw-college-<?php echo $the_query->get('category_name'); ?>">
+                <div class="gw-course-wrapper">
                     <?php while( $the_query->have_posts() ) : $the_query->the_post(); ?>
                         <?php
                         $user_data = apply_filters('gw_current_user_login', null);
                         $course_minimum_percent = get_field('requirement_percentage');
-                        if( get_field('gw_enable') && $course_minimum_percent <= $user_data->{'PERCENT'}):
+
+                        if( get_field('gw_enable') &&
+                            get_field('degree') == $user_data->{'DEGREE_LEVEL'} &&
+                            $course_minimum_percent <= $user_data->{'PERCENT'}
+                        ):
 
                             // Generate apply link
                             $get_slug_name = stripslashes(get_post_field( 'post_name', get_post() ));
@@ -108,7 +118,7 @@ class GWShortCodes
                                 'page' => 'pass_course_apply',
                                 'course' => $get_slug_name,
                             ), GWUtility::_gw_current_page_url(null) );
-
+                            $course_count++;
                             ?>
                             <div class="gw-course-item gw-c-id-<?php the_ID(); ?> <?php  echo ($applied_course == $get_slug_name) ? 'gw-selected-course' : ''  ?>">
                                 <div class="gw-course-content">
@@ -131,6 +141,7 @@ class GWShortCodes
                             </div>
                         <?php endif; ?>
                     <?php endwhile; ?>
+                    <?php echo ($course_count<1) ? "<div class=\"gw-notice\">No courses are available based on your profile.</div>" : "" ; ?>
                 </div>
             </div>
         <?php endif; ?>
@@ -141,16 +152,14 @@ class GWShortCodes
     }
 
     public function breadcrumbs(){
-        // Do user validation
-        do_action('gw_validate_login', false, true); // Redirect to login if non authenticated
+        apply_filters('gw_session_validate', null);
         $current_progress = apply_filters( 'gw_breadcrumbs_progress', null );
 
         $menu_list = array(
             array("progress"=> 1, "href"=>"", "label"=>"Check Test Result"),
             array("progress"=> 2, "href"=>"", "label"=>"Pre-enlistment Process"),
             array("progress"=> 3, "href"=>"", "label"=>"Fill-up Enrollment Data"),
-            array("progress"=> 4, "href"=>"", "label"=>"Enrollment Verification"),
-            array("progress"=> 5, "href"=>"", "label"=>"Finished"),
+            array("progress"=> 4, "href"=>"", "label"=>"Finished"),
         );
 
         echo '<ul class="breadcrumb">';
@@ -215,7 +224,43 @@ class GWShortCodes
         ), $atts );
 
         $user_data = apply_filters( 'gw_current_user_login', null );
-        return $this->_gw_submitted_data_query($atts['field'], $user_data->{'EXAMINEE_NO'});
+
+        switch ($atts['field']) {
+          case 'requirements':
+            $data_source = new GWDataTable();
+            $result = $data_source->getExamResultData($user_data->{'ID'});
+
+            $field = json_decode($result['VALIDATION_REQUIREMENTS']);
+            $styles = "<style>ul.gw-submitted-files {padding: 10px 30px;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
+            echo $styles;
+
+            $file_lists = "<ul class=\"gw-submitted-files\">";
+            foreach ($field as $key => $value) {
+              $file_lists.="<li><a href=\"" . $value . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
+            }
+            $file_lists.= "</ul>";
+            return $file_lists;
+          case 'course_title':
+            $data_source = new GWDataTable();
+            $result = $data_source->getExamResultData($user_data->{'ID'});
+            $field_data = apply_filters('gw_get_course_meta_id', $result['REQUESTED_COURSE_ID'] , 'get_the_title', null);
+            return $field_data;
+          case 'college_title':
+            $data_source = new GWDataTable();
+            $result = $data_source->getExamResultData($user_data->{'ID'});
+            $field_data = apply_filters('gw_get_course_meta_id', $result['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name;
+            return $field_data;
+          case 'status':
+            $data_source = new GWDataTable();
+            $result = $data_source->getExamResultData($user_data->{'ID'});
+            return $result['VALIDATION_STATUS'];
+          case 'feedback':
+            $data_source = new GWDataTable();
+            $result = $data_source->getExamResultData($user_data->{'ID'});
+            return $result['VALIDATION_FEEDBACK'];
+          default:
+            return $this->_gw_submitted_data_query($atts['field'], $user_data->{'EXAMINEE_NO'});
+        }
     }
 
     public function current_user($atts){
@@ -224,14 +269,39 @@ class GWShortCodes
         ), $atts );
 
         $user_data = apply_filters( 'gw_current_user_login', null );
+
         switch($atts['field']){
             case 'exam_number': return $user_data->{'EXAMINEE_NO'};
             case 'score_in_percent': return $user_data->{'PERCENT'};
             case 'full_name': return $user_data->{'FULL_NAME'};
             case 'is_success': return $user_data->{'EXAM_STATUS'};
+            case 'email_address':
+            case 'contact_number':
+            case 'address':
+                $data_source = new GWDataTable();
+                $result = $data_source->getExamResultData($user_data->{'ID'});
+
+                $field = $result[strtoupper($atts['field'])];
+
+                if(empty($field)){
+                  $field = 'No data provided.';
+                }
+                return $field;
             default:
                 return "No field selected";
         }
+    }
+
+    public function student_submitted_summary(){
+
+    }
+
+    public function update_student_contact(){
+
+    }
+
+    public function uploadt_student_requirements(){
+
     }
 
     // Filters
@@ -264,29 +334,12 @@ class GWShortCodes
 
     public function _gw_course_availed_counts($course_slug = ''){
         global $wpdb;
-        $results = $wpdb->get_results( "SELECT COUNT(DISTINCT dt.user_value) as reserve_course_count FROM
-		(SELECT
-			A.entry_id as course_entry_id,
-			A.slug as course_slug,
-			A.value as course_value,
-			B.entry_id as user_entry_id,
-			B.slug as user_slug,
-			B.value as user_value,
-			C.entry_id as action_entry_id,
-			C.slug as action_slug,
-			C.value as action_value FROM
-				{$wpdb->prefix}cf_form_entry_values A,
-				{$wpdb->prefix}cf_form_entry_values B,
-				{$wpdb->prefix}cf_form_entry_values C
-					WHERE
-						A.slug='course' AND
-						A.entry_id=B.entry_id AND
-						A.entry_id=C.entry_id AND
-						B.slug='examinee_number' AND
-						C.slug='status' AND
-						C.value IN ('pending', 'approved') ORDER BY B.value) dt
-							WHERE dt.course_value='{$course_slug}'", OBJECT );
-        return $results[0]->{'reserve_course_count'};
+        $course_id = apply_filters('gw_get_course_meta', $course_slug , 'get_the_ID', null);
+        $results = $wpdb->get_results( "SELECT count(*) AS availed_course_count
+        FROM buksu_gateway_gw_exam_results
+        WHERE REQUESTED_COURSE_ID = '{$course_id}' AND VALIDATION_STATUS IN ('pending', 'approved')", OBJECT );
+
+        return $results[0]->{'availed_course_count'};
     }
 
     public function _gw_applied_course_query($field_name, $field_examinee_number){
@@ -295,20 +348,14 @@ class GWShortCodes
         $field_name = sanitize_text_field( $field_name );
         $field_examinee_number = sanitize_text_field( $field_examinee_number );
 
-        $results = $wpdb->get_results( "SELECT
-		A.entry_id as course_entry_id,
-		A.slug as course_slug,
-		A.value as course_value
-			FROM buksu_gateway_cf_form_entry_values A,
-					 buksu_gateway_cf_form_entry_values B
-					 WHERE
-							A.entry_id=B.entry_id AND
-							B.slug='examinee_number' AND
-							B.value='{$field_examinee_number}' and
-							A.slug='{$field_name}'", OBJECT );
+        $results = $wpdb->get_results( "SELECT {$field_name} as result_value
+        FROM buksu_gateway_gw_exam_results
+        WHERE REQUESTED_COURSE_ID = '{$course_id}' AND
+        VALIDATION_STATUS IN ('pending', 'approved') AND
+        EXAMINEE_NO = '{$field_examinee_number}'", OBJECT );
 
         if(!empty($results)){
-            return $results[0]->{'course_value'};
+            return $results[0]->{'result_value'};
         }
         return false;
     }
@@ -319,23 +366,32 @@ class GWShortCodes
         $field_name = sanitize_text_field( $field_name );
         $field_examinee_number = sanitize_text_field( $field_examinee_number );
 
-        $results = $wpdb->get_results( "SELECT
-		B.entry_id as user_entry_id,
-		B.slug as user_slug,
-		B.value as user_value
-			FROM buksu_gateway_cf_form_entry_values A,
-					 buksu_gateway_cf_form_entry_values B
-					 WHERE
-							A.entry_id=B.entry_id AND
-							A.slug='examinee_number' AND
-							A.value='{$field_examinee_number}' and
-							B.slug='{$field_name}'", OBJECT );
+        $results = $wpdb->get_results( "SELECT {$field_name} as user_value
+        FROM buksu_gateway_gw_exam_results
+        WHERE REQUESTED_COURSE_ID = '{$course_id}' AND
+        VALIDATION_STATUS IN ('pending', 'approved') AND
+        EXAMINEE_NO = '{$field_examinee_number}'", OBJECT );
         return $results[0]->{'user_value'};
     }
 
     public function _gw_course_meta_by_slug($course_slug, $function_name, $param){
         $args = array(
             'name'  => $course_slug,
+            'post_type'   => 'courses',
+            'post_status' => 'publish',
+            'numberposts' => 1
+        );
+        $the_query = new WP_Query( $args );
+        if( $the_query->have_posts() ){
+            while( $the_query->have_posts() ) : $the_query->the_post();
+                return call_user_func($function_name, $param);
+            endwhile;
+        }
+    }
+
+    public function _gw_course_meta_by_id($course_id, $function_name, $param){
+        $args = array(
+            'p'  => $course_id,
             'post_type'   => 'courses',
             'post_status' => 'publish',
             'numberposts' => 1
@@ -384,19 +440,44 @@ class GWShortCodes
         }
     }
 
-    public function validate_submitted_information($examinee_number = null){ // do_action('gw_validate_session') is required to work
-        global $wpdb;
+    public function validate_submitted_information($examinee_number = null, $uid=null){
         // Get current user
         $user_data = apply_filters('gw_current_user_login', null);
 
-        if(!$examinee_number){
+        if(!$examinee_number && !$uid){
             $examinee_number = $user_data->{'EXAMINEE_NO'};
+            $uid = $user_data->{'ID'};
         }
 
-        // Query Entries
-        $results = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}cf_form_entry_values WHERE slug = 'examinee_number' AND value ='{$examinee_number}'", OBJECT );
+        $data_source = new GWDataTable();
 
-        return count($results) >= 1;
+        // Query Entries
+        $results = $data_source->isCourseApplicationExist($uid, $examinee_number);
+
+        return $results >= 1;
+    }
+
+    public function validate_request_status($is_success_redirect=true, $is_fail_redirect=false){
+        // Get current user
+        $user_data = apply_filters('gw_current_user_login', null);
+
+        $examinee_number = $user_data->{'EXAMINEE_NO'};
+        $uid = $user_data->{'ID'};
+
+        $data_source = new GWDataTable();
+        $result = $data_source->getExamResultData($user_data->{'ID'});
+
+        $status = $result['VALIDATION_STATUS'];
+
+        if(strtolower($status) == 'approved'){
+            if($is_success_redirect){
+              GWUtility::_gw_redirect( 'pass_course_success', null );
+            }
+        }else{
+          if($is_fail_redirect){
+            GWUtility::_gw_redirect( 'pass_courses', null );
+          }
+        }
     }
 
 }

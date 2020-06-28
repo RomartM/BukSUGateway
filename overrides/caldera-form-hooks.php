@@ -1,7 +1,34 @@
 <?php
 
+/** Wait until caldera_forms_core_init hook so we know all actions were added **/
+add_action( 'caldera_forms_core_init', function() {
+    //File delete is attempted first here, but if an email should send, the file isn't deleted//
+    remove_action( 'caldera_forms_submit_complete', array( 'Caldera_Forms_Files', 'cleanup' ) );
+
+    //If email is set to be used, we wait until email is sent to delete on these hooks:
+    remove_action( 'caldera_forms_mailer_complete', array( 'Caldera_Forms_Files', 'delete_after_mail' ), 10, 3 );
+    remove_action( 'caldera_forms_mailer_failed', array( 'Caldera_Forms_Files', 'delete_after_mail' ), 10, 3 );
+
+    //Just in case of a never completed submission or some other issue, a CRON job is used to delete the file
+    remove_all_actions( Caldera_Forms_Files::CRON_ACTION );
+
+}, 10, 4);
+
+add_filter( 'caldera_forms_private_upload_directory', function( $directory, $field_id, $form_id, $transient_id ){
+  do_action('gw_validate_login', false);
+  // Get current user
+  $user_data = apply_filters('gw_current_user_login', null);
+
+  $directory = 'user-requirements/'. $user_data->{'ID'} .'';
+
+  return $directory;
+},10,4);
+
 // Check first if user already submitted information
 add_filter( 'caldera_forms_pre_render_form', function( $html, $entry_id, $form ){
+
+    $styles = "<style>.cf2-file-listed{display:grid;grid-template-columns:75% 25%;background-color:#e7f3fe;padding:10px;border-radius:10px}.cf2-file-control{height:25px}.cf2-file-extra-data{margin-top:0!important}.cf2-list-files{padding:5px 0;display:grid;grid-row-gap:7px}.cf2-file-listed progress{display:none}button.btn.btn-block{border-radius:30px}.caldera-grid ul.cf2-list-files .cf2-file-listed .cf2-file-control button.cf2-file-remove:after{text-decoration:none}</style>";
+    echo $styles;
     //change to your form ID here!
     if( 'CF5eec114f6ed6c' == $form[ 'ID' ]  ){
         $result = apply_filters('gw_validate_submitted_information', null);
@@ -9,10 +36,10 @@ add_filter( 'caldera_forms_pre_render_form', function( $html, $entry_id, $form )
         if( $result ){
             //echo do_shortcode("[gw_applied_course field=\'course\']");
             return GWUtility::_gw_render_shortcode('<div class="caldera-grid"><div class="alert alert-success">
-				Your information has been successfully submitted. An enrollment officer will contact you through the phone number you provided.
-				[elementor-template id="627"]
-				[elementor-template id="617"]
-				</div></div>');
+				        Your information has been successfully submitted. An enrollment officer will contact you through the phone number you provided.
+				            [elementor-template id="627"]
+				            [elementor-template id="617"]
+				            </div></div>');
         }
 
         if($remaining_slots < 1){
@@ -55,30 +82,23 @@ add_filter('caldera_forms_ajax_return', function($out, $form){
         $user_data = apply_filters('gw_current_user_login', null);
 
         // Get to modify fields
-        $field_full_name = $entry->get_field(Caldera_Forms_Field_Util::get_field_by_slug('full_name', $form)['ID']);
+        $field_uid = $entry->get_field(Caldera_Forms_Field_Util::get_field_by_slug('uid', $form)['ID']);
         $field_examinee_number = $entry->get_field(Caldera_Forms_Field_Util::get_field_by_slug('examinee_number', $form)['ID']);
-        $field_exam_score = $entry->get_field(Caldera_Forms_Field_Util::get_field_by_slug('exam_score', $form)['ID']);
-        $field_status = $entry->get_field(Caldera_Forms_Field_Util::get_field_by_slug('status', $form)['ID']);
 
-        //Change fields value
-        $field_full_name->value = $user_data->{'FULL_NAME'};
-        $field_examinee_number->value = $user_data->{'EXAMINEE_NO'};
-        $field_exam_score->value = $user_data->{'PERCENT'};
+        $raw_data = Caldera_Forms::get_submission_data( $form );
 
-        // Status types
-        // Pending - On Student Request
-        // Approved - On enrollment officer approved
-        // Rejected - On enrollment officer qualification did not pass
-        $field_status->value = 'pending';
+        $course_field_id = Caldera_Forms_Field_Util::get_field_by_slug('course', $form)['ID'];
+        $selected_course = $raw_data[$course_field_id];
 
-        // Put modified field back in entry
-        $entry->add_field( $field_full_name );
-        $entry->add_field( $field_examinee_number );
-        $entry->add_field( $field_exam_score );
-        $entry->add_field( $field_status );
+        $requirements_uploader_field_id = Caldera_Forms_Field_Util::get_field_by_slug('requirements_uploader', $form)['ID'];
+        $requirements_files = $raw_data[$requirements_uploader_field_id];
 
-        // Save entry
-        $entry_id = $entry->save();
+
+        $course_id = apply_filters('gw_get_course_meta', $selected_course , 'get_the_ID', null);
+
+        $entry_manager = new GWEntriesManager(1);
+        $result = $entry_manager->request_course($user_data->{'ID'}, $course_id, json_encode($requirements_files));
+
     }
 
     // Render shortcode

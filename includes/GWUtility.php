@@ -10,8 +10,9 @@ if (! defined( 'ABSPATH' ) ){
  */
 class GWUtility {
 
-    private function __construct() {
-        // Do Nothing
+    public function __construct() {
+        add_action('gw_admin_notice', array($this, 'admin_notice'));
+        add_action('gw_admin_notice_no_student', array($this, 'no_student_admin_notice'));
     }
 
     /**
@@ -123,7 +124,14 @@ class GWUtility {
 
         $admin_notice .= "    <p>" . __( $message, 'wp-gw' ) . "</p>\n";
         $admin_notice .= "</div>\n";
-        return $admin_notice;
+        echo $admin_notice;
+    }
+
+    public function no_student_admin_notice(){
+      $data = array('type' => 'error', 'message'=>'No student matched.' );
+      $this->admin_notice( $data );
+      echo sprintf('<a href="?page=%s" class="button button-secondary">Back to Student Lists</a>', $_REQUEST['page']);
+      exit;
     }
 
     /**
@@ -231,3 +239,5 @@ class GWUtility {
         }
     }
 }
+
+//new GWUtility();
