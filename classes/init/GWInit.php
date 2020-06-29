@@ -144,11 +144,18 @@ class GWInit {
         add_submenu_page(
             'gw-exam-results-manager',
             __( 'Upload Exam Results', 'wp-gw' ),
-            __( 'Upload', 'wp-gw' ),
+            __( 'Upload Exam Results', 'wp-gw' ),
             'manage_options',
             'gw-upload-exam',
             array( $admin_page, 'gw_upload_exam' ));
 
+        add_submenu_page(
+            'gw-exam-results-manager',
+            __( 'Upload Admission Info', 'wp-gw' ),
+            __( 'Upload Admission Info', 'wp-gw' ),
+            'manage_options',
+            'gw-admission-info',
+            array( $admin_page, 'gw_admission_info' ));
 
         add_action( "load-$hook", array( $this, 'wp_gw_add_options') );
     }
@@ -162,7 +169,7 @@ class GWInit {
         $option = 'per_page';
         $args = array(
             'label' => 'Exam Results',
-            'default' => 40,
+            'default' => 500,
             'option' => 'gw_entries_per_page'
         );
         add_screen_option( $option, $args );

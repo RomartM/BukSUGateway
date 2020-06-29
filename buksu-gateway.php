@@ -18,6 +18,7 @@ if (! defined( 'ABSPATH' ) ){
 define( 'WP_GW_VERSION', '1.0' );
 define( 'WP_GW_TABLE_LOG_VERSION', '1.0' );
 define( 'WP_GW_TABLE_EXAM_RESULT_VERSION', '1.0' );
+define( 'WP_GW_TABLE_ADMISSION_INFO_VERSION', '1.0' );
 define( 'WP_GW_ROOT', dirname( __FILE__ ) );
 define( 'WP_GW_URL', plugins_url( '/', __FILE__ ) );
 define( 'WP_GW_BASE_FILE', basename( dirname( __FILE__ ) ) . '/buksu-gateway.php' );
@@ -50,4 +51,4 @@ $init = new GWInit();
 // $d = new GWDataTable(); // Truncate Exam Results Table
 // $d->truncateExamResults();
 
-//$init->wp_gw_activate(); //Force Upgrade Database
+$init->wp_gw_activate(); //Force Upgrade Database

@@ -24,11 +24,16 @@ class GWEntriesTable extends WP_List_Table
         switch( $column_name ) {
             case 'last_name':
             case 'first_name':
-            case 'requested_course':
             case 'percent':
             case 'exam_status':
             case 'validation_status':
-                return $item[ $column_name ];
+                return strtoupper($item[ $column_name ]);
+            case 'requested_course':
+                $course_id = $item[ $column_name ];
+                if(empty($course_id)){
+                    $course_id = null;
+                }
+                return apply_filters('gw_get_course_meta_id', $course_id , 'get_the_title', null);
             case 'examinee_no':
                 return sprintf('<a href="?page=%s&sub=%s&id=%s" target="_blank">%s</a>',
                 $_REQUEST['page'],
@@ -43,7 +48,7 @@ class GWEntriesTable extends WP_List_Table
 
     function column_cb($item) {
         return sprintf(
-            '<input type="checkbox" name="gw_entry[]" value="%s" />', $item['ID']
+            '<input type="checkbox" name="gw_entry[]" value="%s" />', $item['id']
         );
     }
 
@@ -110,7 +115,7 @@ class GWEntriesTable extends WP_List_Table
         $entry_manager = new GWEntriesManager(1);
 
         $this->_column_headers = $this->get_column_info();
-        $per_page = $this->get_items_per_page( 'gw_entries_per_page');
+        $per_page = 500;//$this->get_items_per_page( 'gw_entries_per_page');
         $current_page = $this->get_pagenum();
 
         $data_source = $entry_manager->get_exam_entries($per_page, $current_page, $search);

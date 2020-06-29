@@ -21,6 +21,7 @@ class GWDataTable
         global $wpdb;
         $this->logger_table_name = $wpdb->prefix. 'gw_logger';
         $this->exam_results_table_name = $wpdb->prefix . 'gw_exam_results';
+        $this->admission_info_table_name = $wpdb->prefix . 'gw_admission_info';
         $this->charset_collate = $wpdb->get_charset_collate();
     }
 
@@ -30,6 +31,7 @@ class GWDataTable
     public function install(){
         $this->loggerInstall();
         $this->examResultInstall();
+        $this->admissionInformationInstall();
     }
 
     /**
@@ -38,6 +40,7 @@ class GWDataTable
     public function uninstall(){
         $this->loggerUninstall();
         $this->examResultUninstall();
+        $this->admissionInformationUninstall();
     }
 
     /**
@@ -196,6 +199,135 @@ class GWDataTable
     }
 
     /**
+    * admissionInformationInstall
+    **/
+    protected function admissionInformationInstall(){
+      $installed_ver = get_option( WP_GW_OPTION_PREFIX . "admission_info_dt_version" );
+
+      if ( $installed_ver != WP_GW_TABLE_ADMISSION_INFO_VERSION ) {
+          $this->admissionInformationUpdate();
+      }else{
+          $sql = "CREATE TABLE $this->admission_info_table_name (
+                  id mediumint(11) NOT NULL AUTO_INCREMENT,
+                  INSERTION_TIME datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+                  EXAMINEE_NO varchar(80) NOT NULL,
+                  EXAMINATION_DATE varchar(80) NOT NULL,
+                  EXAMINATION_TIME varchar(80) NOT NULL,
+                  BIRTHDATE varchar(80) NULL,
+                  LRN varchar(80) NULL,
+                  CITIZENSHIP varchar(80) NULL,
+                  CIVIL_STATUS varchar(80) NULL,
+                  IS_IG varchar(80) NULL,
+                  PROVINCE varchar(80) NULL,
+                  ZIP_CODE varchar(80) NULL,
+                  TCM varchar(80) NULL,
+                  BRGY varchar(80) NULL,
+                  STREET varchar(100) NULL,
+                  STATUS varchar(80) NULL,
+                  COURSE_PREF varchar(80) NULL,
+                  SCHOOL_NAME varchar(80) NULL,
+                  SCHOOL_ADDR varchar(80) NULL,
+                  SHS_STRAND varchar(80) NULL,
+                  SCHOOL_TYPE varchar(80) NULL,
+                  PRIMARY KEY (id)
+              ) $this->charset_collate;";
+
+          require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+          dbDelta( $sql );
+          add_option( WP_GW_OPTION_PREFIX . "gw_admission_info_dt_version", WP_GW_TABLE_EXAM_RESULT_VERSION );
+      }
+    }
+
+    // SELECT a.EXAMINEE_NO, 
+    // a.EXAMINATION_DATE,
+    // a.EXAMINATION_TIME,
+    // a.BIRTHDATE,
+    // a.id
+    // a.EMAIL_ADDRESS
+    // a.LAST_NAME
+    // a.FIRST_NAME
+    // a.MIDDLE_NAME
+    // a.NAME_SUFFIX
+    // a.SEX a.BIRTHDATE
+    // a.CONTACT_NUMBER
+    // a.ADDRESS
+    // a.TOTAL
+    // a.PERCENT
+    // a.EXAM_STATUS
+    // a.DEGREE_LEVEL
+    // a.REQUESTED_COURSE_ID
+    // a.VALIDATION_REQUIREMENTS
+    // a.VALIDATION_STATUS
+    // a.VALIDATION_OFFICER
+    // a.VALIDATION_FEEDBACK,
+    // b.EXAMINEE_NO,
+    // b.EXAMINATION_DATE,
+    // b.EXAMINATION_TIME,
+    // b.BIRTHDATE,
+    // b.id,
+    // b.LRN
+    // b.CITIZENSHIP
+    // b.CIVIL_STATUS
+    // b.IS_IG
+    // b.PROVINCE
+    // b.ZIP_CODE
+    // b.TCM
+    // b.BRGY
+    // b.STREET
+    // b.STATUS
+    // b.COURSE_PREF
+    // b.SCHOOL_NAME
+    // b.SCHOOL_ADDR
+    // b.SHS_STRAND
+    // b.SCHOOL_TYPE FROM buksu_gateway_gw_exam_results as a INNER JOIN buksu_gateway_gw_admission_info as b ON a.EXAMINEE_NO = b.EXAMINEE_NO;
+
+    /**
+     * admissionInformationUpdate
+     */
+    protected function admissionInformationUpdate(){
+      $sql = "CREATE TABLE $this->admission_info_table_name (
+              id mediumint(11) NOT NULL AUTO_INCREMENT,
+              INSERTION_TIME datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+              EXAMINEE_NO varchar(80) NOT NULL,
+              EXAMINATION_DATE varchar(80) NOT NULL,
+              EXAMINATION_TIME varchar(80) NOT NULL,
+              BIRTHDATE varchar(80) NULL,
+              LRN varchar(80) NULL,
+              CITIZENSHIP varchar(80) NULL,
+              CIVIL_STATUS varchar(80) NULL,
+              IS_IG varchar(80) NULL,
+              PROVINCE varchar(80) NULL,
+              ZIP_CODE varchar(80) NULL,
+              TCM varchar(80) NULL,
+              BRGY varchar(80) NULL,
+              STREET varchar(100) NULL,
+              STATUS varchar(80) NOT NULL,
+              COURSE_PREF varchar(80) NOT NULL,
+              SCHOOL_NAME varchar(80) NOT NULL,
+              SCHOOL_ADDR varchar(80) NOT NULL,
+              SHS_STRAND varchar(80) NULL,
+              SCHOOL_TYPE varchar(80) NULL,
+              PRIMARY KEY (id)
+          ) $this->charset_collate;";
+
+      require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+      dbDelta( $sql );
+
+      update_option( WP_GW_OPTION_PREFIX . "gw_admission_info_dt_version", WP_GW_TABLE_EXAM_RESULT_VERSION );
+    }
+
+    /**
+     *  Drop admissionInformation data table
+     */
+    protected function admissionInformationUninstall(){
+        global $wpdb;
+
+        $wpdb->query( "DROP TABLE IF EXISTS  $this->admission_info_table_name" );
+        delete_option( 'gw_admission_info_dt_version' );
+    }
+
+
+    /**
      * Returns action method status
      *
      * @param string $method Function name of the method
@@ -308,6 +440,18 @@ class GWDataTable
     	return $wpdb->get_results($query, OBJECT);
     }
 
+    public function getAdmissionInfo($data_entry){
+      global $wpdb;
+
+      $query = "SELECT * FROM {$this->admission_info_table_name} where
+    		EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
+    		EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
+    		EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
+    		BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
+
+    	return $wpdb->get_results($query, OBJECT);
+    }
+
     public function getExamEntries($items_per_page = 20, $current_page = 1, $search=null, $degree_level='college'){
       global $wpdb;
 
@@ -380,7 +524,44 @@ class GWDataTable
                 'TOTAL' => $entry['TOTAL'],
                 'PERCENT' => $entry['PERCENT'],
                 'EXAM_STATUS' => $entry['EXAM_STATUS'],
-                'DEGREE_LEVEL' => $degree_level
+            )
+        );
+        return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
+    /**
+     * insertAdmissionInfo
+     *
+     * @param $entry
+     * @param string $degree_level
+     * @return array|string[]
+     */
+    public function insertAdmissionInfo( $entry ){
+        global $wpdb;
+
+        $action = $wpdb->insert(
+            $this->admission_info_table_name,
+            array(
+                'INSERTION_TIME' => current_time( 'mysql' ),
+                'EXAMINEE_NO' => $entry['EXAMINEE_NO'],
+                'EXAMINATION_DATE' => $entry['EXAMINATION_DATE'],
+                'EXAMINATION_TIME' => $entry['EXAMINATION_TIME'],
+                'BIRTHDATE' => $entry['BIRTHDATE'],
+                'LRN' => $entry['LRN'],
+                'CITIZENSHIP' => $entry['CITIZENSHIP'],
+                'CIVIL_STATUS' => $entry['CIVIL_STATUS'],
+                'IS_IG' => $entry['IS_IG'],
+                'PROVINCE' => $entry['PROVINCE'],
+                'ZIP_CODE' => $entry['ZIP_CODE'],
+                'TCM' => $entry['TCM'],
+                'BRGY' => $entry['BRGY'],
+                'STREET' => $entry['STREET'],
+                'STATUS' => $entry['STATUS'],
+                'COURSE_PREF' => $entry['COURSE_PREF'],
+                'SCHOOL_NAME' => $entry['SCHOOL_NAME'],
+                'SCHOOL_ADDR' => $entry['SCHOOL_ADDR'],
+                'SHS_STRAND' => $entry['SHS_STRAND'],
+                'SCHOOL_TYPE' => $entry['SCHOOL_TYPE']
             )
         );
         return $this->getActionStatus(__FUNCTION__, $action);
@@ -391,13 +572,13 @@ class GWDataTable
      * @param $id_number
      * @return array|string[]
      */
-    public function deleteExamResult($id_number){
-        global $wpdb;
-
-        $action = $wpdb->delete( $this->exam_results_table_name, array( 'id_number' => $id_number ) );
-
-        return $this->getActionStatus(__FUNCTION__, $action);
-    }
+    // public function deleteExamResult($id_number){
+    //     global $wpdb;
+    //
+    //     $action = $wpdb->delete( $this->exam_results_table_name, array( 'id_number' => $id_number ) );
+    //
+    //     return $this->getActionStatus(__FUNCTION__, $action);
+    // }
 
     /**
      * Update user status
@@ -452,6 +633,22 @@ class GWDataTable
 
     /**
      * Check if exam results already exist
+     * @param $data_entry
+     * @return bool
+     */
+    public function isAdmissionInfoDataExist($data_entry){
+        global $wpdb;
+        $cntSQL = "SELECT count(*) as count FROM {$this->admission_info_table_name} where
+              EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
+              EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
+              EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
+              BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
+
+        return $wpdb->get_results($cntSQL, OBJECT);
+    }
+
+    /**
+     * Check if course application already exist
      * @param $data_entry
      * @return bool
      */

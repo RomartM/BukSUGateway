@@ -106,7 +106,7 @@ class GWShortCodes
                         $course_minimum_percent = get_field('requirement_percentage');
 
                         if( get_field('gw_enable') &&
-                            get_field('degree') == $user_data->{'DEGREE_LEVEL'} &&
+                            get_field('levels') == $user_data->{'DEGREE_LEVEL'} &&
                             $course_minimum_percent <= $user_data->{'PERCENT'}
                         ):
 
@@ -225,6 +225,10 @@ class GWShortCodes
 
         $user_data = apply_filters( 'gw_current_user_login', null );
 
+        if(empty($user_data->{'ID'})){
+          return false;
+        }
+
         switch ($atts['field']) {
           case 'requirements':
             $data_source = new GWDataTable();
@@ -327,7 +331,10 @@ class GWShortCodes
             $GLOBALS['gw_current_user'] = $user_obj;
             return $GLOBALS['gw_current_user'];
         }
-        return $GLOBALS['gw_current_user'];
+        if(!empty($GLOBALS['gw_current_user'])){
+          return $GLOBALS['gw_current_user'];
+        }
+        return false;
     }
 
     // Methods
@@ -343,20 +350,24 @@ class GWShortCodes
     }
 
     public function _gw_applied_course_query($field_name, $field_examinee_number){
-        global $wpdb;
-
-        $field_name = sanitize_text_field( $field_name );
-        $field_examinee_number = sanitize_text_field( $field_examinee_number );
-
-        $results = $wpdb->get_results( "SELECT {$field_name} as result_value
-        FROM buksu_gateway_gw_exam_results
-        WHERE REQUESTED_COURSE_ID = '{$course_id}' AND
-        VALIDATION_STATUS IN ('pending', 'approved') AND
-        EXAMINEE_NO = '{$field_examinee_number}'", OBJECT );
-
-        if(!empty($results)){
-            return $results[0]->{'result_value'};
-        }
+        // global $wpdb;
+        //
+        // $field_name = sanitize_text_field( $field_name );
+        // $field_examinee_number = sanitize_text_field( $field_examinee_number );
+        //
+        // print_r($field_name);
+        //
+        // $course_id = apply_filters('gw_get_course_meta', $course_slug , 'get_the_ID', null);
+        //
+        // $results = $wpdb->get_results( "SELECT {$field_name} as result_value
+        // FROM buksu_gateway_gw_exam_results
+        // WHERE REQUESTED_COURSE_ID = '{$course_id}' AND
+        // VALIDATION_STATUS IN ('pending', 'approved') AND
+        // EXAMINEE_NO = '{$field_examinee_number}'", OBJECT );
+        //
+        // if(!empty($results)){
+        //     return $results[0]->{'result_value'};
+        // }
         return false;
     }
 
@@ -390,6 +401,11 @@ class GWShortCodes
     }
 
     public function _gw_course_meta_by_id($course_id, $function_name, $param){
+
+        if(empty($course_id)){
+          return '';
+        }
+
         $args = array(
             'p'  => $course_id,
             'post_type'   => 'courses',

@@ -41,6 +41,7 @@ class GWEntriesManager
           array( 'id' => $id ),
           array( '%s', '%s', '%s' )
       );
+
       return $action;
     }
 

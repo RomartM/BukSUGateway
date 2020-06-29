@@ -279,6 +279,7 @@ class GWFrontEnd
     // Approve Course Application
     public function gw_pass_course_success()
     {
+        echo do_shortcode('[elementor-template id="668"]');
         //do_action('gw_validate_session');
     }
 

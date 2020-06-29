@@ -58,13 +58,23 @@ class GWAdminPages
     }
 
     /**
-     * Create settings view
+     * Create exam upload view
      */
     public function gw_upload_exam(){
         $this->page_body(
             '/templ/admin-upload-exam.php'
         );
     }
+
+    /**
+     * Create admission upload view
+     */
+    public function gw_admission_info(){
+        $this->page_body(
+            '/templ/admin-upload-admission-info.php'
+        );
+    }
+
 
     /**
      * Create student profile view

@@ -17,6 +17,10 @@ class GWPostResponder
         add_action( 'admin_post_nopriv_gw_upload_exam_results', array( $this, 'upload_exam_results') );
         add_action( 'admin_post_gw_upload_exam_results', array( $this, 'upload_exam_results') );
 
+        // Upload data
+        add_action( 'admin_post_nopriv_gw_upload_admission_info', array( $this, 'upload_admission_info') );
+        add_action( 'admin_post_gw_upload_admission_info', array( $this, 'upload_admission_info') );
+
         // Update Student Contact Self
         add_action( 'admin_post_nopriv_gw_student_update_self', array( $this, 'gw_update_student_contact') );
         add_action( 'admin_post_gw_student_update_self', array( $this, 'gw_update_student_contact') );
@@ -341,6 +345,90 @@ class GWPostResponder
           function ($e){ // Post Error
             print_r($e);
           }, 'upload_exam'
+        );
+    }
+
+    public function upload_admission_info(){
+        $this->sanitizer(
+          function (){ // Success
+              if(current_user_can( 'edit_users' )){
+                  // File extension
+                  $extension = pathinfo($_FILES['gw-import-file']['name'], PATHINFO_EXTENSION);
+                  // If file extension is 'csv'
+                  if(!empty($_FILES['gw-import-file']['name']) && $extension == 'csv') {
+
+                      $totalInserted = 0;
+
+                      // Open file in read mode
+                      $csvFile = fopen($_FILES['gw-import-file']['tmp_name'], 'r');
+
+                      fgetcsv($csvFile); // Skipping header row
+
+                      $data_query = new GWDataTable();
+
+
+                      // Read file
+                      while(($csvData = fgetcsv($csvFile)) !== FALSE){
+                          $csvData = array_map("utf8_encode", $csvData);
+
+
+                          // Row column length
+                          $dataLen = count($csvData);
+
+                          if( !($dataLen == 19) ) continue;
+
+                          $data_entry['EXAMINEE_NO'] = trim( $csvData[0] );
+                          $data_entry['EXAMINATION_DATE'] = trim( $csvData[1] );
+                          $data_entry['EXAMINATION_TIME'] = trim( $csvData[2] );
+                          $data_entry['BIRTHDATE'] = trim( $csvData[3] );
+                          $data_entry['LRN'] = trim( $csvData[4] );
+                          $data_entry['CITIZENSHIP'] = trim( $csvData[5] );
+                          $data_entry['CIVIL_STATUS'] = trim( $csvData[6] );
+                          $data_entry['IS_IG'] = trim( $csvData[7] );
+                          $data_entry['PROVINCE'] = trim( $csvData[8] );
+                          $data_entry['ZIP_CODE'] = trim( $csvData[9] );
+                          $data_entry['TCM'] = trim( $csvData[10] );
+                          $data_entry['BRGY'] = trim( $csvData[11] );
+                          $data_entry['STREET'] = trim( $csvData[12] );
+                          $data_entry['STATUS'] = trim( $csvData[13] );
+                          $data_entry['COURSE_PREF'] = trim( $csvData[9] );
+                          $data_entry['SCHOOL_NAME'] = trim( $csvData[10] );
+                          $data_entry['SCHOOL_ADDR'] = trim( $csvData[11] );
+                          $data_entry['SHS_STRAND'] = trim( $csvData[12] );
+                          $data_entry['SCHOOL_TYPE'] = trim( $csvData[13] );
+
+                          // Duplicate Checks Action
+                          $record = $data_query->isAdmissionInfoDataExist($data_entry);
+
+                          if($record[0]->count==0){
+
+                              if(  !empty( $data_entry['EXAMINEE_NO'] ) &&
+                                  !empty( $data_entry['EXAMINATION_DATE'] ) &&
+                                  !empty( $data_entry['EXAMINATION_TIME'] ) &&
+                                  !empty( $data_entry['BIRTHDATE'] )
+                              ){
+
+                                  $result = $data_query->insertAdmissionInfo($data_entry);
+
+                                  if($result['id'] > 0){
+                                      $totalInserted++;
+                                  }
+
+                              }
+                          }
+                      }
+                      echo "<h3 style='color: green;'>Total record Inserted : ".$totalInserted."</h3>";
+                  }else{
+                      print_r('Extension Invalid');
+                  }
+              }else{
+                  // Not Allowed
+                  print_r('Not Allowed');
+              }
+          },
+          function ($e){ // Post Error
+            print_r($e);
+          }, 'upload_admission_info'
         );
     }
 

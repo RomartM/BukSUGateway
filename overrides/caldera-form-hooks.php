@@ -30,7 +30,7 @@ add_filter( 'caldera_forms_pre_render_form', function( $html, $entry_id, $form )
     $styles = "<style>.cf2-file-listed{display:grid;grid-template-columns:75% 25%;background-color:#e7f3fe;padding:10px;border-radius:10px}.cf2-file-control{height:25px}.cf2-file-extra-data{margin-top:0!important}.cf2-list-files{padding:5px 0;display:grid;grid-row-gap:7px}.cf2-file-listed progress{display:none}button.btn.btn-block{border-radius:30px}.caldera-grid ul.cf2-list-files .cf2-file-listed .cf2-file-control button.cf2-file-remove:after{text-decoration:none}</style>";
     echo $styles;
     //change to your form ID here!
-    if( 'CF5eec114f6ed6c' == $form[ 'ID' ]  ){
+    if( 'CF5ef930501b83d' == $form[ 'ID' ]  ){
         $result = apply_filters('gw_validate_submitted_information', null);
         $remaining_slots = do_shortcode('[gw_current_course field="slots_number_available"]');
         if( $result ){
@@ -51,7 +51,7 @@ add_filter( 'caldera_forms_pre_render_form', function( $html, $entry_id, $form )
 
 // Validate User Requirements
 add_action( 'caldera_forms_submit_start', function( array $form, $process_id ) {
-    if( 'CF5eec114f6ed6c' == $form[ 'ID' ] ){
+    if( 'CF5ef930501b83d' == $form[ 'ID' ] ){
         do_action('gw_validate_login', false);
 
         $raw_data = Caldera_Forms::get_submission_data( $form );
@@ -73,7 +73,7 @@ add_action( 'caldera_forms_submit_start', function( array $form, $process_id ) {
 
 // Inject User Meta into User Entry
 add_filter('caldera_forms_ajax_return', function($out, $form){
-    if( 'CF5eec114f6ed6c' == $form[ 'ID' ] ){ // Inject User Meta
+    if( 'CF5ef930501b83d' == $form[ 'ID' ] ){ // Inject User Meta
         //do_action('gw_validate_session');
         $entry_id = $out['data']['cf_id'];
         $entry = new Caldera_Forms_Entry( $form, $entry_id );

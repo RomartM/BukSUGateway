@@ -24,6 +24,9 @@ function _gw_get_submitted_files($uid){
   $styles = "<style>ul.gw-submitted-files {padding: 0px 25px;list-style: decimal;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
   echo $styles;
 
+  if(empty($field)){
+    return 0;
+  }
   $file_lists = "<ul class=\"gw-submitted-files\">";
   foreach ($field as $key => $value) {
     $file_lists.="<li><a href=\"" . $value . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
@@ -240,11 +243,11 @@ span.gw-field-value {
       <div class="gw-action-card-content">
         <div class="gw-content-field">
           <span class="gw-field-label">Requested Course</span>
-          <span class="gw-field-value"><?php echo apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null); ?></span>
+          <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null): ''; ?></span>
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Course College</span>
-          <span class="gw-field-value"><?php echo apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name; ?></span>
+          <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name: ''; ?></span>
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Status</span>
@@ -274,11 +277,11 @@ span.gw-field-value {
         <div class="gw-action-card-content">
           <div class="gw-content-field">
             <span class="gw-field-label">Course</span>
-            <span class="gw-field-value"><?php echo apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null); ?></span>
+            <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null): ''; ?></span>
           </div>
           <div class="gw-content-field">
             <span class="gw-field-label">College</span>
-            <span class="gw-field-value"><?php echo apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name; ?></span>
+            <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name: ''; ?></span>
           </div>
           <!-- <div class="gw-content-field">
             <span class="gw-field-label">Date of Submission</span>
