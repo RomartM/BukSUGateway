@@ -51,4 +51,10 @@ $init = new GWInit();
 // $d = new GWDataTable(); // Truncate Exam Results Table
 // $d->truncateExamResults();
 
-$init->wp_gw_activate(); //Force Upgrade Database
+ //$d = new GWDataTable(); // Truncate Exam Results Table
+ //$d->truncateAdmissionInfo();
+
+//$init->wp_gw_activate(); //Force Upgrade Database
+
+// TODO: For new student -> After course request the system will generate a transaction id.
+//  This id will be used to check the student course request and will

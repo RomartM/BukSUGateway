@@ -157,6 +157,14 @@ class GWInit {
             'gw-admission-info',
             array( $admin_page, 'gw_admission_info' ));
 
+        add_submenu_page(
+            'gw-exam-results-manager',
+            __( 'Semester Settings', 'wp-gw' ),
+            __( 'Semester Settings', 'wp-gw' ),
+            'manage_options',
+            'gw-settings-semester',
+            array( $admin_page, 'gw_settings_semester' ));
+
         add_action( "load-$hook", array( $this, 'wp_gw_add_options') );
     }
 

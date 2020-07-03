@@ -27,6 +27,7 @@ class GWShortCodes
         add_shortcode('gw_applied_course', array( $this, 'applied_course'));
         add_shortcode('gw_submitted_info', array( $this, 'submitted_info'));
         add_shortcode('gw_current_user', array( $this, 'current_user'));
+        add_shortcode('gw_generated_data', array( $this, 'student_submitted_summary'));
 
     }
 
@@ -89,9 +90,7 @@ class GWShortCodes
             'orderby' => 'title',
             'category_name' => $attr_data['college'],
         );
-        echo "<style>.gw-course-wrapper > .gw-noti {
-    font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif !important;
-}</style>";
+        echo "<style>.gw-course-wrapper > .gw-noti { font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif !important;}</style>";
         // query
         $the_query = new WP_Query( $args );
         $course_count = 0;
@@ -215,7 +214,7 @@ class GWShortCodes
         ), $atts );
 
         $user_data = apply_filters( 'gw_current_user_login', null );
-        return $this->_gw_current_applied_course($atts['field'], $user_data->{'EXAMINEE_NO'});
+        return $this->_gw_current_applied_course($atts['field'], $user_data->{'ID'});
     }
 
     public function submitted_info($atts){
@@ -258,6 +257,10 @@ class GWShortCodes
             $data_source = new GWDataTable();
             $result = $data_source->getExamResultData($user_data->{'ID'});
             return $result['VALIDATION_STATUS'];
+          case 'tc':
+            $data_table = new GWDataTable();
+            $formatted_tc = $data_table->getTC($user_data->{'ID'});
+            return $formatted_tc['REQUESTED_TRANSACTION_ID'];
           case 'feedback':
             $data_source = new GWDataTable();
             $result = $data_source->getExamResultData($user_data->{'ID'});
@@ -291,21 +294,65 @@ class GWShortCodes
                   $field = 'No data provided.';
                 }
                 return $field;
+            case 'full_data':
+                $data_source = new GWDataTable();
+
+                $result = $data_source->getAdmissionInfo($user_data->{'ID'});
+
+                if(count($result)<1){
+                    echo "No student information could be found.";
+                    break;
+                }else{
+                  $gw_user_info = $result[0];
+                }
+
+                include WP_GW_ROOT . '/templ/gw-new-student-update-information.php';
+                break;
             default:
                 return "No field selected";
         }
     }
 
-    public function student_submitted_summary(){
+    public function student_submitted_summary($atts){
+      shortcode_atts( array(
+          'field' => ''
+      ), $atts );
 
-    }
+      $user_data = apply_filters( 'gw_current_user_login', null );
 
-    public function update_student_contact(){
+      $exam_results = new GWDataTable();
 
-    }
+      $gw_user_info = $exam_results->getExamResultData($user_data->{'ID'});
 
-    public function uploadt_student_requirements(){
+      $field_format = "<span class=\"gw-clipboard\">%s</span>";
 
+      switch($atts['field']){
+        case 'full_name':
+          return $user_data->{'FULL_NAME'};
+        case 'selected_course':
+          if(!empty($gw_user_info['REQUESTED_COURSE_ID'])){
+            return apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null);
+          }
+          return 'No Selected Course';
+        case 'sias-username':
+          return sprintf($field_format, $gw_user_info['ID_NUMBER']);
+        case 'sias-password':
+          return sprintf($field_format, $gw_user_info['TEMP_PASSWORD']);
+        case 'mail-username':
+          return sprintf($field_format, sprintf("%s@student.buksu.edu.ph",  $gw_user_info['ID_NUMBER']));
+        case 'mail-password':
+          return sprintf($field_format, $gw_user_info['TEMP_PASSWORD']);
+        case 'internet-username':
+          return sprintf($field_format, $gw_user_info['ID_NUMBER']);
+        case 'internet-password':
+          return sprintf($field_format, $gw_user_info['TEMP_PASSWORD']);
+        case 'activation-date':
+          // get_option('gw_settings_activation_sched')
+          $date = strtotime("+7 day");
+          return date('M d, Y', $date);
+        default:
+          return 'Field not found';
+      }
     }
 
     // Filters
@@ -349,25 +396,22 @@ class GWShortCodes
         return $results[0]->{'availed_course_count'};
     }
 
-    public function _gw_applied_course_query($field_name, $field_examinee_number){
-        // global $wpdb;
-        //
-        // $field_name = sanitize_text_field( $field_name );
-        // $field_examinee_number = sanitize_text_field( $field_examinee_number );
-        //
-        // print_r($field_name);
-        //
-        // $course_id = apply_filters('gw_get_course_meta', $course_slug , 'get_the_ID', null);
-        //
-        // $results = $wpdb->get_results( "SELECT {$field_name} as result_value
-        // FROM buksu_gateway_gw_exam_results
-        // WHERE REQUESTED_COURSE_ID = '{$course_id}' AND
-        // VALIDATION_STATUS IN ('pending', 'approved') AND
-        // EXAMINEE_NO = '{$field_examinee_number}'", OBJECT );
-        //
-        // if(!empty($results)){
-        //     return $results[0]->{'result_value'};
-        // }
+    public function _gw_applied_course_query($field_name, $unique_id){
+        global $wpdb;
+
+        $field_name = sanitize_text_field( $field_name );
+
+        $results = $wpdb->get_results( "SELECT * FROM buksu_gateway_gw_exam_results
+        WHERE VALIDATION_STATUS IN ('pending', 'approved') AND
+        id = '{$unique_id}'", ARRAY_A );
+
+        if(!empty($results)){
+            if($field_name == 'course'){
+              return $results[0]['REQUESTED_COURSE_ID'];
+            }elseif ($field_name == 'status') {
+              return $results[0]['VALIDATION_STATUS'];
+            }
+        }
         return false;
     }
 
@@ -406,6 +450,11 @@ class GWShortCodes
           return '';
         }
 
+        if($function_name == 'slug'){
+          $post = get_post($course_id);
+          return $post->post_name;
+        }
+
         $args = array(
             'p'  => $course_id,
             'post_type'   => 'courses',
@@ -420,19 +469,19 @@ class GWShortCodes
         }
     }
 
-    public function _gw_current_applied_course($field_name, $field_examinee_number){
-        $course_slug = $this->_gw_applied_course_query('course', $field_examinee_number);
+    public function _gw_current_applied_course($field_name, $unique_id){
+        $course_id = $this->_gw_applied_course_query('course', $unique_id);
         switch ($field_name) {
             case 'course_slug':
-                return $course_slug;
+                return $this->_gw_course_meta_by_id( $course_id , 'slug', null);
             case 'course_title':
-                return $this->_gw_course_meta_by_slug( $course_slug , 'get_the_title', null);
+                return $this->_gw_course_meta_by_id( $course_id , 'get_the_title', null);
                 break;
             case 'college_title':
-                return $this->_gw_course_meta_by_slug( $course_slug , 'get_the_category', null)[0]->cat_name;
+                return $this->_gw_course_meta_by_id( $course_id , 'get_the_category', null)[0]->cat_name;
                 break;
             case 'status':
-                return $this->_gw_applied_course_query('status', $field_examinee_number);
+                return $this->_gw_applied_course_query('status', $unique_id);
             default:
                 return "No field selected";
                 break;
@@ -484,10 +533,20 @@ class GWShortCodes
         $result = $data_source->getExamResultData($user_data->{'ID'});
 
         $status = $result['VALIDATION_STATUS'];
+        $course_id = $result['REQUESTED_COURSE_ID'];
 
         if(strtolower($status) == 'approved'){
             if($is_success_redirect){
               GWUtility::_gw_redirect( 'pass_course_success', null );
+            }
+        }elseif (strtolower($status) == 'pending') {
+            if($is_success_redirect){
+              $course_slug = add_filter('gw_get_course_meta_id', $course_id , 'slug', null);
+              $url_to_redirect = add_query_arg( array(
+                  'page' => 'pass_course_apply',
+                  'course' => $course_slug,
+              ),  GWUtility::_gw_current_page_url(null));
+              wp_redirect( $url_to_redirect );
             }
         }else{
           if($is_fail_redirect){

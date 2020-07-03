@@ -9,28 +9,36 @@ class GWPostResponder
         add_action( 'admin_post_nopriv_gw_new_login', array( $this, 'new_student_login') );
         add_action( 'admin_post_gw_new_login', array( $this, 'new_student_login') );
 
+        // New Student login
+        add_action( 'admin_post_nopriv_gw_login_instant', array( $this, 'instant_login') );
+        add_action( 'admin_post_gw_login_instant', array( $this, 'instant_login') );
+
+
         // Old student login
         add_action( 'admin_post_nopriv_gw_old_login', array( $this, 'old_student_login') );
         add_action( 'admin_post_gw_old_login', array( $this, 'old_student_login') );
 
         // Upload data
-        add_action( 'admin_post_nopriv_gw_upload_exam_results', array( $this, 'upload_exam_results') );
         add_action( 'admin_post_gw_upload_exam_results', array( $this, 'upload_exam_results') );
 
         // Upload data
-        add_action( 'admin_post_nopriv_gw_upload_admission_info', array( $this, 'upload_admission_info') );
         add_action( 'admin_post_gw_upload_admission_info', array( $this, 'upload_admission_info') );
+
+        // Update Settings Semester
+        add_action( 'admin_post_gw_settings_semester', array( $this, 'update_settings_semester') );
 
         // Update Student Contact Self
         add_action( 'admin_post_nopriv_gw_student_update_self', array( $this, 'gw_update_student_contact') );
         add_action( 'admin_post_gw_student_update_self', array( $this, 'gw_update_student_contact') );
 
+        // Update Student Info Self
+        add_action( 'admin_post_nopriv_gw_student_update_info_self', array( $this, 'gw_update_student_info') );
+        add_action( 'admin_post_gw_student_update_info_self', array( $this, 'gw_update_student_info') );
+
         // Update Student Contact Admin
-        add_action( 'admin_post_nopriv_gw_student_update', array( $this, 'update_student_contact') );
         add_action( 'admin_post_gw_student_update', array( $this, 'update_student_contact') );
 
         // Update Student Request
-        add_action( 'admin_post_nopriv_gw_request_validation', array( $this, 'request_validation') );
         add_action( 'admin_post_gw_request_validation', array( $this, 'request_validation') );
 
         // Filters
@@ -104,7 +112,7 @@ class GWPostResponder
                         apply_filters('gw_session_set', $user_data, '/', ''); // Set session
                         GWUtility::_gw_redirect( 'pass_process', null, '/my/' );
                     }else{
-                        //GWUtility::_gw_redirect( $referer_page['page'], 404, "", wp_get_referer() ); // User does not exists
+                        GWUtility::_gw_redirect( $referer_page['page'], 404, "", wp_get_referer() ); // User does not exists
                     }
                 }else{
                     GWUtility::_gw_redirect( $referer_page['page'], 417, "", wp_get_referer() ); // All fields are reuired
@@ -114,6 +122,55 @@ class GWPostResponder
                 $referer_page = GWUtility::_gw_parse_url(wp_get_referer());
                 GWUtility::_gw_redirect( $referer_page['page'], 400, "", wp_get_referer() ); // Bad Request
             });
+    }
+
+    public function instant_login(){
+        $this->sanitizer(
+            function (){
+                $referer_page = GWUtility::_gw_parse_url(wp_get_referer());
+                if( isset($_POST['gw_tc_number'])){
+
+                    $tc_id = sanitize_text_field( $_POST['gw_tc_number'] );
+                    $data_table = new GWDataTable();
+
+                    $data_entry = $data_table->getLoginByTC($tc_id);
+
+                    $initial_user_data = apply_filters('gw_get_user', $data_entry);
+
+                    if(count($initial_user_data)!=0){
+                        $user_data = array(
+                            'ID' => $initial_user_data[0]->{'id'},
+                            'FIRST_NAME' => $initial_user_data[0]->{'FIRST_NAME'},
+                            'MIDDLE_NAME' => $initial_user_data[0]->{'MIDDLE_NAME'},
+                            'LAST_NAME' => $initial_user_data[0]->{'LAST_NAME'},
+                            'NAME_SUFFIX' => $initial_user_data[0]->{'NAME_SUFFIX'},
+                            'FULL_NAME' => sprintf("%s %s %s %s",
+                                $initial_user_data[0]->{'FIRST_NAME'},
+                                $initial_user_data[0]->{'MIDDLE_NAME'},
+                                $initial_user_data[0]->{'LAST_NAME'},
+                                $initial_user_data[0]->{'NAME_SUFFIX'}),
+                            'SEX' => $initial_user_data[0]->{'SEX'},
+                            'EXAMINATION_DATE' => $initial_user_data[0]->{'EXAMINATION_DATE'},
+                            'EXAMINATION_TIME' => $initial_user_data[0]->{'EXAMINATION_TIME'},
+                            'EXAMINEE_NO' => $initial_user_data[0]->{'EXAMINEE_NO'},
+                            'EXAM_STATUS' => $initial_user_data[0]->{'EXAM_STATUS'},
+                            'DEGREE_LEVEL' => $initial_user_data[0]->{'DEGREE_LEVEL'},
+                            'PERCENT' => str_replace("%", "", $initial_user_data[0]->{'PERCENT'}),
+                        );
+                        $user_data['STUDENT_TYPE'] = 'new';
+                        apply_filters('gw_session_set', $user_data, '/', ''); // Set session
+                        GWUtility::_gw_redirect( 'pass_process', null, '/my/' );
+                    }else{
+                        GWUtility::_gw_redirect( $referer_page['page'], 404, "", wp_get_referer() ); // User does not exists
+                    }
+                }else{
+                    GWUtility::_gw_redirect( $referer_page['page'], 417, "", wp_get_referer() ); // All fields are reuired
+                }
+            },
+            function ($e){
+                $referer_page = GWUtility::_gw_parse_url(wp_get_referer());
+                GWUtility::_gw_redirect( $referer_page['page'], 400, "", wp_get_referer() ); // Bad Request
+            }, 'login_instant');
     }
 
     public function old_student_login(){
@@ -219,6 +276,8 @@ class GWPostResponder
         }
     }
 
+    // No Priv Functions
+
     public function gw_update_student_contact(){
       //gw_student_update
       $this->sanitizer(
@@ -258,6 +317,125 @@ class GWPostResponder
           print_r($e);
         }, 'student_update_self'
       );
+    }
+
+    public function gw_update_student_info(){
+      //gw_student_update
+      $this->sanitizer(
+        function (){ // Success
+            if(apply_filters( 'gw_session_validate', null )){
+
+                if(isset($_POST['gw_student_update']))
+                  $data_array = $_POST['gw_student_update'];
+
+                  if(
+                    isset($data_array['last_name']) &&
+                    isset($data_array['first_name']) &&
+                    isset($data_array['birthdate']) &&
+                    isset($data_array['citizenship']) &&
+                    isset($data_array['sex']) &&
+                    isset($data_array['civil_status']) &&
+                    isset($data_array['email_address']) &&
+                    isset($data_array['contact_number']) &&
+                    isset($data_array['province']) &&
+                    isset($data_array['zip_code']) &&
+                    isset($data_array['tcm']) &&
+                    isset($data_array['brgy']) &&
+                    isset($data_array['street'])
+                  ){
+
+                    $formatted_date = date_format( date_create(sanitize_text_field( $data_array['birthdate']  )) ,"n/j/Y");
+                    // Examination Data Table
+                    $field_exam['LAST_NAME'] = sanitize_text_field( $data_array['last_name']  );
+                    $field_exam['FIRST_NAME'] = sanitize_text_field( $data_array['first_name']  );
+                    $field_exam['MIDDLE_NAME'] = sanitize_text_field( $data_array['middle_name']  );
+                    $field_exam['NAME_SUFFIX'] = sanitize_text_field( $data_array['name_suffix']  );
+                    $field_exam['BIRTHDATE'] = $formatted_date;
+                    $field_exam['SEX'] = sanitize_text_field( $data_array['sex']  );
+                    $field_exam['CONTACT_NUMBER'] = sanitize_text_field( $data_array['contact_number']  );
+                    $field_exam['EMAIL_ADDRESS'] = sanitize_text_field( $data_array['email_address']  );
+                    $field_exam['ADDRESS'] = sanitize_text_field( $data_array['address']  );
+
+                    // Admission Data Table
+                    $field_admission['CITIZENSHIP'] = sanitize_text_field( $data_array['citizenship']  );
+                    $field_admission['BIRTHDATE'] = $formatted_date;
+                    $field_admission['CIVIL_STATUS'] = sanitize_text_field( $data_array['civil_status']  );
+                    $field_admission['PROVINCE'] = sanitize_text_field( $data_array['province']  );
+                    $field_admission['ZIP_CODE'] = sanitize_text_field( $data_array['zip_code']  );
+                    $field_admission['TCM'] = sanitize_text_field( $data_array['tcm']  );
+                    $field_admission['BRGY'] = sanitize_text_field( $data_array['brgy']  );
+                    $field_admission['STREET'] = sanitize_text_field( $data_array['street']  );
+
+                    $data_table = new GWDataTable();
+
+                    $user_data = apply_filters( 'gw_current_user_login', null );
+
+                    $user_dataset = $data_table->getRelatedID($user_data->{'ID'});
+
+                    if(count($user_dataset) < 1){
+                      $response = array(
+                        "status"=>"error",
+                        "confirmation"=>false,
+                        "messsage"=>"No related information could be retrieve"
+                      );
+                      $this->json_responder($response);
+                    }else{
+                      $user_exam_id = $user_dataset[0]['exam_id'];
+                      $user_admission_id = $user_dataset[0]['admission_id'];
+                    }
+                    $updated_count = 0;
+                    $updated_count += $data_table->updateExamStudentInformation($user_exam_id, $field_exam);
+                    $updated_count += $data_table->updateAdmissionStudentInformation($user_admission_id, $field_admission);
+                    $updated_count += $data_table->generateID($user_data->{'ID'}); // Generate ID
+
+                    // Validation Log Format
+                    $data_table->insertLog($user_data->{'ID'}, 'info_confirmation', json_encode(
+                      array(
+                        "updated_count" =>  $updated_count
+                      )
+                    ));
+
+                    $data_table->setConfirmation($user_data->{'ID'},true);
+
+                    $response = array(
+                      "status"=>"success",
+                      "confirmation"=>true,
+                      "updated_count"=>$updated_count
+                    );
+                    $this->json_responder($response);
+                  }else{
+                    $response = array(
+                      "status"=>"error",
+                      "confirmation"=>false,
+                      "messsage"=>"Please fill in required fields"
+                    );
+                    $this->json_responder($response);
+                  }
+            }else{
+              $response = array(
+                "status"=>"error",
+                "confirmation"=>false,
+                "messsage"=>"Not allowed"
+              );
+              $this->json_responder($response);
+            }
+        },
+        function($e){
+          $response = array(
+            "status"=>"error",
+            "confirmation"=>false,
+            "messsage"=>"Something went wrong",
+            "details"=> $e
+          );
+          $this->json_responder($response);
+        }, 'student_update_info_self'
+      );
+    }
+
+    public function json_responder($response_array){
+      header("Content-Type: application/json; charset=UTF-8");
+      echo json_encode($response_array);
+      die();
     }
 
     // Admin Core Functions
@@ -333,6 +511,16 @@ class GWPostResponder
                               }
                           }
                       }
+
+                      // Validation Log Format
+                      $data_query = new GWDataTable();
+                      $data_query->insertLog(get_current_user_id(), 'upload', json_encode(
+                        array(
+                          "type" =>  "exam",
+                          "filename" =>  $_FILES['gw-import-file']['name']
+                        )
+                      ));
+
                       echo "<h3 style='color: green;'>Total record Inserted : ".$totalInserted."</h3>";
                   }else{
                       print_r('Extension Invalid');
@@ -391,11 +579,11 @@ class GWPostResponder
                           $data_entry['BRGY'] = trim( $csvData[11] );
                           $data_entry['STREET'] = trim( $csvData[12] );
                           $data_entry['STATUS'] = trim( $csvData[13] );
-                          $data_entry['COURSE_PREF'] = trim( $csvData[9] );
-                          $data_entry['SCHOOL_NAME'] = trim( $csvData[10] );
-                          $data_entry['SCHOOL_ADDR'] = trim( $csvData[11] );
-                          $data_entry['SHS_STRAND'] = trim( $csvData[12] );
-                          $data_entry['SCHOOL_TYPE'] = trim( $csvData[13] );
+                          $data_entry['COURSE_PREF'] = trim( $csvData[14] );
+                          $data_entry['SCHOOL_NAME'] = trim( $csvData[15] );
+                          $data_entry['SCHOOL_ADDR'] = trim( $csvData[16] );
+                          $data_entry['SHS_STRAND'] = trim( $csvData[17] );
+                          $data_entry['SCHOOL_TYPE'] = trim( $csvData[18] );
 
                           // Duplicate Checks Action
                           $record = $data_query->isAdmissionInfoDataExist($data_entry);
@@ -417,6 +605,16 @@ class GWPostResponder
                               }
                           }
                       }
+
+                      // Validation Log Format
+                      $data_query = new GWDataTable();
+                      $data_query->insertLog(get_current_user_id(), 'upload', json_encode(
+                        array(
+                          "type" =>  "admission",
+                          "filename" =>  $_FILES['gw-import-file']['name']
+                        )
+                      ));
+
                       echo "<h3 style='color: green;'>Total record Inserted : ".$totalInserted."</h3>";
                   }else{
                       print_r('Extension Invalid');
@@ -509,6 +707,47 @@ class GWPostResponder
         function($e){
           print_r($e);
         }, 'request_validation'
+      );
+    }
+
+    public function update_settings_semester(){
+      //gw_semester_update
+      $this->sanitizer(
+        function (){ // Success
+            if(current_user_can( 'edit_users' )){
+                if(
+                  isset($_POST['gw-semester']) &&
+                  isset($_POST['gw-semester-year'])
+                ){
+                      $field_semester = sanitize_text_field($_POST['gw-semester']);
+                      $field_semester_year = sanitize_text_field($_POST['gw-semester-year']);
+
+                      update_option('gw_settings_semester', $field_semester);
+                      update_option('gw_settings_semester_year', $field_semester_year);
+                      // $field_address = sanitize_text_field($_POST['gw_student_update_address']);
+                      //
+                      // $entry_manager = new GWEntriesManager(1);
+                      //
+                      // $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
+                      // $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
+                      // $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
+                      //
+                      $url_components = parse_url( wp_get_referer() );
+                      parse_str($url_components['query'], $params);
+                      $student_update_attr = sprintf("?page=%s",  $params['page']);
+                      $student_update_url = admin_url("admin.php{$student_update_attr}");
+
+                      wp_redirect($student_update_url);
+                }else{
+                  print_r('Please fill in required fields');
+                }
+            }else{
+                print_r('Not Allowed');
+            }
+        },
+        function($e){
+          print_r($e);
+        }, 'settings_semester'
       );
     }
 

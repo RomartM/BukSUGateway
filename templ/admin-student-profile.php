@@ -147,6 +147,7 @@ span.gw-field-value {
 }
 
 </style>
+
 <div class="gw-student-profile">
   <div class="gw-wrapper">
     <div class="gw-action-cards">
@@ -317,6 +318,10 @@ span.gw-field-value {
                 <div class="gw-form-input-group gw-form-address">
                     <label for="gwEnrollmentOfficerFeedback">Your Feedback:</label>
                     <textarea id="gwEnrollmentOfficerFeedback" name="gw_enrollment_officer_feedback" rows="5"><?php echo $gw_user_info['VALIDATION_FEEDBACK'] ?></textarea>
+                </div>
+                <div class="gw-form-input-group">
+                    <label for="GWUploadCOR">Certificate of Registration(COR):</label>
+                    <input type="file" name="gw-upload-cor" id="GWUploadCOR" accept="application/pdf" <?php echo (strtolower($gw_user_info['VALIDATION_STATUS'])=='approved')? 'disabled':'required';?>>
                 </div>
               </div>
               <div class="gw-form-action">

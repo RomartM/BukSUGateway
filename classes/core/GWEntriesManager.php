@@ -19,6 +19,15 @@ class GWEntriesManager
     public function validate_entry($id, $status){
       global $wpdb;
 
+      // Validation Log Format
+      $logger = new GWDataTable();
+      $logger->insertLog($id, 'validation', json_encode(
+        array(
+          "officer" =>  $this->current_enrollment_officer,
+          "status"    =>  $status
+        )
+      ));
+
       $action = $wpdb-> update(
           $this->data_table_instance->exam_results_table_name,
           array( 'VALIDATION_OFFICER' => $this->current_enrollment_officer,
@@ -31,7 +40,17 @@ class GWEntriesManager
 
     public function request_course($id, $course_id, $requirements_files){
       global $wpdb;
-      $wpdb->show_errors();
+
+      // Validation Log Format
+      $data_table = new GWDataTable();
+      $data_table->insertLog($id, 'validation', json_encode(
+        array(
+          "course_id" =>  $course_id,
+          "status"    =>  "pending"
+        )
+      ));
+
+      $data_table->generateTC($id, $course_id);
 
       $action = $wpdb-> update(
           $this->data_table_instance->exam_results_table_name,
@@ -41,7 +60,6 @@ class GWEntriesManager
           array( 'id' => $id ),
           array( '%s', '%s', '%s' )
       );
-
       return $action;
     }
 

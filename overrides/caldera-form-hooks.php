@@ -1,5 +1,6 @@
 <?php
 
+
 /** Wait until caldera_forms_core_init hook so we know all actions were added **/
 add_action( 'caldera_forms_core_init', function() {
     //File delete is attempted first here, but if an email should send, the file isn't deleted//

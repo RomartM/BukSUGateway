@@ -75,6 +75,14 @@ class GWAdminPages
         );
     }
 
+    /**
+     * Create admission upload view
+     */
+    public function gw_settings_semester(){
+        $this->page_body(
+            '/templ/admin-semester-config.php'
+        );
+    }
 
     /**
      * Create student profile view

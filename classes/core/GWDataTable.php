@@ -71,7 +71,7 @@ class GWDataTable
 
             $sql = "CREATE TABLE $this->logger_table_name (
                 id mediumint(9) NOT NULL AUTO_INCREMENT,
-                id_number tinytext NULL,
+                id_ref tinytext NULL,
                 time datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
                 type tinytext NULL,
                 details text NULL,
@@ -91,7 +91,7 @@ class GWDataTable
     protected function loggerUpdate(){
         $sql = "CREATE TABLE $this->logger_table_name (
                 id mediumint(9) NOT NULL AUTO_INCREMENT,
-                id_number tinytext NULL,
+                id_ref tinytext NULL,
                 time datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
                 type tinytext NULL,
                 details text NULL,
@@ -144,10 +144,15 @@ class GWDataTable
                     EXAM_STATUS varchar(80) NOT NULL,
                     DEGREE_LEVEL varchar(80) NOT NULL,
                     REQUESTED_COURSE_ID varchar(80) NULL,
+                    REQUESTED_TRANSACTION_ID varchar(80) NULL,
                     VALIDATION_REQUIREMENTS varchar(800) NULL,
+                    VALIDATION_COR varchar(800) NULL,
                     VALIDATION_STATUS varchar(80) NULL,
                     VALIDATION_OFFICER varchar(80) NULL,
                     VALIDATION_FEEDBACK varchar(300) NULL,
+                    CONFIRMATION_BOOL int DEFAULT 0 NOT NULL,
+                    ID_NUMBER varchar(10) NULL,
+                    TEMP_PASSWORD varchar(10) NULL,
                     PRIMARY KEY (id)
                 ) $this->charset_collate;";
 
@@ -237,49 +242,6 @@ class GWDataTable
           add_option( WP_GW_OPTION_PREFIX . "gw_admission_info_dt_version", WP_GW_TABLE_EXAM_RESULT_VERSION );
       }
     }
-
-    // SELECT a.EXAMINEE_NO, 
-    // a.EXAMINATION_DATE,
-    // a.EXAMINATION_TIME,
-    // a.BIRTHDATE,
-    // a.id
-    // a.EMAIL_ADDRESS
-    // a.LAST_NAME
-    // a.FIRST_NAME
-    // a.MIDDLE_NAME
-    // a.NAME_SUFFIX
-    // a.SEX a.BIRTHDATE
-    // a.CONTACT_NUMBER
-    // a.ADDRESS
-    // a.TOTAL
-    // a.PERCENT
-    // a.EXAM_STATUS
-    // a.DEGREE_LEVEL
-    // a.REQUESTED_COURSE_ID
-    // a.VALIDATION_REQUIREMENTS
-    // a.VALIDATION_STATUS
-    // a.VALIDATION_OFFICER
-    // a.VALIDATION_FEEDBACK,
-    // b.EXAMINEE_NO,
-    // b.EXAMINATION_DATE,
-    // b.EXAMINATION_TIME,
-    // b.BIRTHDATE,
-    // b.id,
-    // b.LRN
-    // b.CITIZENSHIP
-    // b.CIVIL_STATUS
-    // b.IS_IG
-    // b.PROVINCE
-    // b.ZIP_CODE
-    // b.TCM
-    // b.BRGY
-    // b.STREET
-    // b.STATUS
-    // b.COURSE_PREF
-    // b.SCHOOL_NAME
-    // b.SCHOOL_ADDR
-    // b.SHS_STRAND
-    // b.SCHOOL_TYPE FROM buksu_gateway_gw_exam_results as a INNER JOIN buksu_gateway_gw_admission_info as b ON a.EXAMINEE_NO = b.EXAMINEE_NO;
 
     /**
      * admissionInformationUpdate
@@ -384,7 +346,7 @@ class GWDataTable
         $action = $wpdb->insert(
             $this->logger_table_name,
             array(
-                'id_number' => $id,
+                'id_ref' => $id,
                 'time' => current_time( 'mysql' ),
                 'type' => $type,
                 'details' => $details,
@@ -428,6 +390,14 @@ class GWDataTable
       return $this->getActionStatus(__FUNCTION__, $action);
     }
 
+    public function truncateAdmissionInfo(){
+      global $wpdb;
+
+      $action = $wpdb->query("TRUNCATE TABLE `{$this->admission_info_table_name}`");
+
+      return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
     public function getUser($data_entry){
       global $wpdb;
 
@@ -440,16 +410,33 @@ class GWDataTable
     	return $wpdb->get_results($query, OBJECT);
     }
 
-    public function getAdmissionInfo($data_entry){
+    public function getRelatedID($unique_id){
       global $wpdb;
 
-      $query = "SELECT * FROM {$this->admission_info_table_name} where
-    		EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
-    		EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
-    		EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
-    		BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
+      $query = "SELECT a.id as exam_id, b.id as admission_id
+      FROM {$this->exam_results_table_name} as a
+      INNER JOIN {$this->admission_info_table_name} as b
+      ON a.EXAMINEE_NO = b.EXAMINEE_NO WHERE a.id LIKE BINARY '{$unique_id}'";
 
-    	return $wpdb->get_results($query, OBJECT);
+      return $wpdb->get_results($query, ARRAY_A);
+    }
+
+    public function getAdmissionInfo($unique_id){
+      global $wpdb;
+
+      $query = "SELECT a.EXAMINEE_NO, a.EXAMINATION_DATE, a.EXAMINATION_TIME, a.BIRTHDATE, a.id as exam_id,
+      a.EMAIL_ADDRESS, a.LAST_NAME, a.FIRST_NAME, a.MIDDLE_NAME, a.NAME_SUFFIX,
+      a.SEX, a.BIRTHDATE, a.CONTACT_NUMBER, a.ADDRESS, a.TOTAL, a.PERCENT,
+      a.EXAM_STATUS, a.DEGREE_LEVEL, a.REQUESTED_COURSE_ID, a.VALIDATION_REQUIREMENTS, a.VALIDATION_STATUS,
+      a.VALIDATION_OFFICER, a.VALIDATION_FEEDBACK,
+      b.id as admission_id, b.LRN, b.CITIZENSHIP, b.CIVIL_STATUS, b.IS_IG, b.PROVINCE,
+      b.ZIP_CODE, b.TCM, b.BRGY, b.STREET, b.STATUS,
+      b.COURSE_PREF, b.SCHOOL_NAME, b.SCHOOL_ADDR, b.SHS_STRAND, b.SCHOOL_TYPE
+      FROM {$this->exam_results_table_name} as a
+      INNER JOIN {$this->admission_info_table_name} as b
+      ON a.EXAMINEE_NO = b.EXAMINEE_NO WHERE a.id LIKE BINARY '{$unique_id}'";
+
+    	return $wpdb->get_results($query, ARRAY_A);
     }
 
     public function getExamEntries($items_per_page = 20, $current_page = 1, $search=null, $degree_level='college'){
@@ -493,7 +480,6 @@ class GWDataTable
       $action = $wpdb->get_results("{$query} ORDER BY id DESC LIMIT {$offset}, {$items_per_page}", ARRAY_A );
 
       return array( "results"=>$action, "total"=>$total);
-      //return $this->getActionStatus(__FUNCTION__, $action);
     }
 
     /**
@@ -567,18 +553,50 @@ class GWDataTable
         return $this->getActionStatus(__FUNCTION__, $action);
     }
 
-    /**
-     * Delete user entry
-     * @param $id_number
-     * @return array|string[]
-     */
-    // public function deleteExamResult($id_number){
-    //     global $wpdb;
-    //
-    //     $action = $wpdb->delete( $this->exam_results_table_name, array( 'id_number' => $id_number ) );
-    //
-    //     return $this->getActionStatus(__FUNCTION__, $action);
-    // }
+    public function updateExamStudentInformation($unique_id, $data_entry){
+      global $wpdb;
+
+      $action = $wpdb-> update(
+          $this->exam_results_table_name,
+          array(
+            'EMAIL_ADDRESS' => $data_entry['EMAIL_ADDRESS'],
+            'LAST_NAME' => $data_entry['LAST_NAME'],
+            'FIRST_NAME' => $data_entry['FIRST_NAME'],
+            'MIDDLE_NAME' => $data_entry['MIDDLE_NAME'],
+            'NAME_SUFFIX' => $data_entry['NAME_SUFFIX'],
+            'SEX' => $data_entry['SEX'],
+            'BIRTHDATE' => $data_entry['BIRTHDATE'],
+            'CONTACT_NUMBER' => $data_entry['CONTACT_NUMBER'],
+            'ADDRESS' => $data_entry['ADDRESS']
+          ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+
+      return $action;
+    }
+
+    public function updateAdmissionStudentInformation($unique_id, $data_entry){
+      global $wpdb;
+
+      $action = $wpdb-> update(
+          $this->admission_info_table_name,
+          array(
+            'BIRTHDATE' => $data_entry['BIRTHDATE'],
+            'CITIZENSHIP' => $data_entry['CITIZENSHIP'],
+            'CIVIL_STATUS' => $data_entry['CIVIL_STATUS'],
+            'PROVINCE' => $data_entry['PROVINCE'],
+            'ZIP_CODE' => $data_entry['ZIP_CODE'],
+            'TCM' => $data_entry['TCM'],
+            'BRGY' => $data_entry['BRGY'],
+            'STREET' => $data_entry['STREET']
+          ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+
+      return $action;
+    }
 
     /**
      * Update user status
@@ -587,18 +605,18 @@ class GWDataTable
      * @param $status
      * @return array|string[]
      */
-    public function updateExamResultStatus($unique_id, $status){
-        global $wpdb;
+     public function updateExamResultStatus($unique_id, $status){
+         global $wpdb;
 
-        $action = $wpdb-> update(
-            $this->exam_results_table_name,
-            array( 'status' => $status ),
-            array( 'id' => ucwords($id_number) ),
-            array( '%s', '%s' )
-        );
+         $action = $wpdb-> update(
+             $this->exam_results_table_name,
+             array( 'status' => $status, ),
+             array( 'id' => ucwords($id_number) ),
+             array( '%s', '%s' )
+         );
 
-        return $this->getActionStatus(__FUNCTION__, $action);
-    }
+         return $this->getActionStatus(__FUNCTION__, $action);
+     }
 
     /**
      * Get user data
@@ -610,6 +628,90 @@ class GWDataTable
         global $wpdb;
 
         return $wpdb->get_row("SELECT * FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
+    }
+
+    public function getConfirmation($unique_id){
+        global $wpdb;
+
+        return $wpdb->get_row("SELECT CONFIRMATION_BOOL FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
+    }
+
+    public function setConfirmation($unique_id, $is_confirmation=false){
+      global $wpdb;
+
+      $action = $wpdb-> update(
+          $this->exam_results_table_name,
+          array( 'CONFIRMATION_BOOL' => $is_confirmation ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+      return $action;
+    }
+
+    public function generateID($unique_id){
+      global $wpdb;
+
+      if($this->getConfirmation($unique_id)['CONFIRMATION_BOOL'] == 1){
+        return false;
+      }
+
+      $year = get_option('gw_settings_semester_year'); // Semester Year
+      $semester = get_option('gw_settings_semester'); // Semester
+
+      $campus = str_pad(1, 2, "0", STR_PAD_LEFT); // Campus (default: Main Campus) TODO: Change to dynamic next version
+      $formatted_id_number =  str_pad((1000 + $unique_id), 5, "0", STR_PAD_LEFT); // id_number
+      $formatted_year = substr( $year, 2 );
+
+      $id_number = sprintf("%s%s%s%s", $formatted_year, $campus, $semester, $formatted_id_number);
+      $temp_password = wp_generate_password( 8, false, false );
+
+      $action = $wpdb-> update(
+          $this->exam_results_table_name,
+          array(
+            'ID_NUMBER' => $id_number,
+            'TEMP_PASSWORD' => $temp_password
+          ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+      return $action;
+    }
+
+    public function generateTC($unique_id, $course_id)
+    {
+      global $wpdb;
+
+      $year = get_option('gw_settings_semester_year'); // Semester Year
+      $semester = get_option('gw_settings_semester'); // Semester
+
+      $campus = str_pad(1, 2, "0", STR_PAD_LEFT); // Campus (default: Main Campus) TODO: Change to dynamic next version
+      $formatted_unique_id = str_pad($unique_id, 4, "0", STR_PAD_LEFT); // unique_id
+      $formatted_course_id = str_pad($course_id, 3, "0", STR_PAD_LEFT); // course_id
+      $formatted_year = substr( $year, 2 );
+
+      $tc_id = sprintf("TC%s%s%s%s%s", $formatted_year, $campus, $semester, $formatted_course_id, $formatted_unique_id);
+
+      $action = $wpdb-> update(
+          $this->exam_results_table_name,
+          array(
+            'REQUESTED_TRANSACTION_ID' => $tc_id
+          ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+      return $action;
+    }
+
+    public function getLoginByTC($tc_id){
+        global $wpdb;
+
+        return $wpdb->get_row("SELECT EXAMINEE_NO, EXAMINATION_DATE, EXAMINATION_TIME, BIRTHDATE FROM {$this->exam_results_table_name} WHERE REQUESTED_TRANSACTION_ID LIKE BINARY '{$tc_id}'", ARRAY_A);
+    }
+
+    public function getTC($unique_id){
+        global $wpdb;
+
+        return $wpdb->get_row("SELECT REQUESTED_TRANSACTION_ID FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
     }
 
     /**
@@ -655,7 +757,7 @@ class GWDataTable
     public function isCourseApplicationExist($id, $examinee_number){
         global $wpdb;
         $cntSQL = "SELECT count(*) AS is_exist
-        FROM buksu_gateway_gw_exam_results
+        FROM {$this->exam_results_table_name}
          WHERE ID = '{$id}' AND
          EXAMINEE_NO = '{$examinee_number}' AND
          VALIDATION_STATUS IN ('pending', 'approved') AND

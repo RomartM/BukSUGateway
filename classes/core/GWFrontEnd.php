@@ -37,6 +37,10 @@ class GWFrontEnd
                         do_action('gw_validate_login', true, false); // Redirect to dashboard if login
                         apply_filters('gw_template_prepare', array( $this, 'gw_login_new_ui'), 1);
                         break;
+                    case 'login-instant':
+                        do_action('gw_validate_login', true, false); // Redirect to dashboard if login
+                        apply_filters('gw_template_prepare', array( $this, 'gw_login_instant_ui'), 1);
+                        break;
                     case 'login-old-student':
                         do_action('gw_validate_login', true, false); // Redirect to dashboard if login
                         apply_filters('gw_template_prepare', array( $this, 'gw_login_old_ui'), 1);
@@ -79,7 +83,7 @@ class GWFrontEnd
                         break;
                     case 'pass_course_pending':
                         do_action('gw_validate_login', false, true);
-                        do_action('gw_validate_request_status', true, false);
+                        do_action('gw_validate_request_status', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_course_pending'), 2);
                         break;
                     case 'pass_course_success':
@@ -89,15 +93,18 @@ class GWFrontEnd
                         break;
                     case 'pass_enrollment_fill':
                         do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_fill'), 3);
                         break;
                     case 'pass_enrollment_verify':
                         do_action('gw_validate_login', false, true);
+                        do_action('gw_validate_request_status', false, true);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_verify'), 4);
                         break;
                     case 'pass_enrollment_welcome':
+                        do_action('gw_validate_request_status', false, true);
                         do_action('gw_validate_login', false, true);
-                        apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_welcome'), 5);
+                        $this->gw_pass_enrollment_welcome();
                         break;
                     default:
                         GWUtility::_gw_redirect('login');
@@ -120,6 +127,10 @@ class GWFrontEnd
         if (!empty($ui_name)) {
             $GLOBALS['gw_template_prepared'] = $current_template;
             return $GLOBALS['gw_template_prepared'];
+        }
+
+        if(empty($GLOBALS['gw_template_prepared'])){
+          return false;
         }
         return $GLOBALS['gw_template_prepared'];
     }
@@ -229,6 +240,12 @@ class GWFrontEnd
         include WP_GW_ROOT . '/templ/gw-new-student-login.php';
     }
 
+    // Login Intant via Transaction Code
+    public function gw_login_instant_ui()
+    {
+        include WP_GW_ROOT . '/templ/gw-instant-login.php';
+    }
+
     public function gw_update_contact_info(){
         include WP_GW_ROOT . '/templ/gw-new-student-update-contact.php';
     }
@@ -286,13 +303,45 @@ class GWFrontEnd
     // Fill Enrollment Data
     public function gw_pass_enrollment_fill()
     {
-        //do_action('gw_validate_session');
+        echo do_shortcode('[elementor-template id="673"]');
+        echo "<script>
+          (function($){
+            $(function () {
+
+            $('form.main-info-form').on('submit', function (e) {
+
+              e.preventDefault();
+
+              $.ajax({
+                type: 'post',
+                url: $('form.main-info-form').attr('action'),
+                data: $('form.main-info-form').serialize(),
+                success: function (data) {
+                  if(data.status == 'success'){
+                    $('.uael-trigger[data-modal=\"216b767\"]').click();
+                  }else{
+                    alert(data.message);
+                  }
+                }
+              });
+
+            });
+
+          });
+          })(jQuery);
+        </script>";
     }
 
     // Welcome to University
     public function gw_pass_enrollment_welcome()
     {
-        //do_action('gw_validate_session');
+        echo "<style type=\"text/css\" media=\"print\">
+              .gw-main-header, .no-print { display: none; }
+              </style><style>#wpadminbar{display:none;}
+              .gw-clipboard{-webkit-user-select: all;-moz-user-select:all;-ms-user-select:all;user-select:all;}
+              span.gw-clipboard { background-color: #9e9e9e70; border-radius: 7px; padding: 2px 7px; float: right; }
+              </style>";
+        echo do_shortcode('[elementor-template id="680"]');
     }
 
     // Verify Enrollment
