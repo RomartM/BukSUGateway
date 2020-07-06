@@ -46,7 +46,9 @@ if ( ! class_exists( 'GWInit' ) ) {
 }
 
 // Initialize the QR Pass class
-$init = new GWInit();
+add_action( 'plugins_loaded', function () {
+	GWInit::get_instance();
+} );
 
 // $d = new GWDataTable(); // Truncate Exam Results Table
 // $d->truncateExamResults();

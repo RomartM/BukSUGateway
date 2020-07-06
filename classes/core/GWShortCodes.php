@@ -13,7 +13,7 @@ class GWShortCodes
 
         // Verifications
         add_action('gw_validate_course_availability', array( $this, 'validate_course_availability'));
-        add_action('gw_validate_request_status', array( $this, 'validate_request_status'), 10, 2);
+        add_action('gw_validate_request_status', array( $this, 'validate_request_status'), 10, 3);
         add_filter('gw_validate_submitted_information', array( $this, 'validate_submitted_information'));
         add_filter('gw_get_course_meta', array( $this, '_gw_course_meta_by_slug' ), 10, 3);
         add_filter('gw_get_course_meta_id', array( $this, '_gw_course_meta_by_id' ), 10, 3);
@@ -522,7 +522,7 @@ class GWShortCodes
         return $results >= 1;
     }
 
-    public function validate_request_status($is_success_redirect=true, $is_fail_redirect=false){
+    public function validate_request_status($is_success_redirect=true, $is_fail_redirect=false, $is_success_redirect_pending=true){
         // Get current user
         $user_data = apply_filters('gw_current_user_login', null);
 
@@ -540,8 +540,8 @@ class GWShortCodes
               GWUtility::_gw_redirect( 'pass_course_success', null );
             }
         }elseif (strtolower($status) == 'pending') {
-            if($is_success_redirect){
-              $course_slug = add_filter('gw_get_course_meta_id', $course_id , 'slug', null);
+            if($is_success_redirect_pending){
+              $course_slug = get_post($course_id)->post_name;
               $url_to_redirect = add_query_arg( array(
                   'page' => 'pass_course_apply',
                   'course' => $course_slug,

@@ -439,7 +439,7 @@ class GWDataTable
     	return $wpdb->get_results($query, ARRAY_A);
     }
 
-    public function getExamEntries($items_per_page = 20, $current_page = 1, $search=null, $degree_level='college'){
+    public function getExamEntries($status="", $items_per_page = 20, $current_page = 1, $search=null, $degree_level='college'){
       global $wpdb;
 
       $offset = ( $current_page * $items_per_page ) - $items_per_page;
@@ -453,8 +453,15 @@ class GWDataTable
         EXAM_STATUS as exam_status,
         VALIDATION_STATUS as validation_status';
 
+      if($status == 'inactive'){
+        $validation_query = "VALIDATION_STATUS IS NULL OR VALIDATION_STATUS = ''";
+      }else{
+        $validation_query = "VALIDATION_STATUS like '{$status}'";
+      }
+
       $query = "SELECT {$fields} FROM {$this->exam_results_table_name}";
-      $degree_level_query = "DEGREE_LEVEL like '{$degree_level}'";
+      $degree_level_query = "DEGREE_LEVEL like '{$degree_level}'
+      AND {$validation_query}";
 
       if(!empty($search)){ // Implement search query
         $search_keyword = sanitize_text_field($search);
@@ -480,6 +487,23 @@ class GWDataTable
       $action = $wpdb->get_results("{$query} ORDER BY id DESC LIMIT {$offset}, {$items_per_page}", ARRAY_A );
 
       return array( "results"=>$action, "total"=>$total);
+    }
+
+    public function getExamCount($status="", $status_type='PASSED', $degree_level='college'){
+      global $wpdb;
+
+      if ($status == 'inactive') {
+          $validation_query = "VALIDATION_STATUS IS NULL OR VALIDATION_STATUS = ''";
+      } else {
+          $validation_query = "VALIDATION_STATUS like '{$status}'";
+      }
+
+      $query = "SELECT count(EXAM_STATUS) as total_count
+      FROM buksu_gateway_gw_exam_results
+      WHERE EXAM_STATUS LIKE '{$status_type}' AND
+      DEGREE_LEVEL like '{$degree_level}' and {$validation_query}";
+
+      return $wpdb->get_results($query, OBJECT)[0]->{'total_count'};
     }
 
     /**

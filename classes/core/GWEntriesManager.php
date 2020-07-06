@@ -12,8 +12,8 @@ class GWEntriesManager
       $this->current_enrollment_officer = $enrollment_officer_id;
     }
 
-    public function get_exam_entries($per_page, $current_page, $search=null){
-      return $this->data_table_instance->getExamEntries($per_page, $current_page, $search);
+    public function get_exam_entries($status, $per_page, $current_page, $search=null){
+      return $this->data_table_instance->getExamEntries($status, $per_page, $current_page, $search);
     }
 
     public function validate_entry($id, $status){

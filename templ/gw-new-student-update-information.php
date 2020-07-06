@@ -376,7 +376,7 @@ if(!empty($updated_count)){
           </div>
           <div class="gw-form-input-group gw-i-officer">
             <label for="gwStudentValidationOfficer">Validation Officer</label>
-            <input type="text" id="gwStudentValidationOfficer" name="gw_student_validation_officer" value="<?php echo $gw_user_info['VALIDATION_OFFICER'] ?>" readonly/>
+            <input type="text" id="gwStudentValidationOfficer" name="gw_student_validation_officer" value="<?php echo GWUtility::_gw_get_user_display_name($gw_user_info['VALIDATION_OFFICER']) ?>" readonly/>
           </div>
           <div class="gw-form-input-group gw-i-remarks">
             <label for="gwStudentValidationFeedback">Validation Remarks</label>

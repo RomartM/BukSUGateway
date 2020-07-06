@@ -243,11 +243,15 @@ span.gw-field-value {
       <div class="gw-action-card-title">Validation Information</div>
       <div class="gw-action-card-content">
         <div class="gw-content-field">
+          <span class="gw-field-label">Transaction ID</span>
+          <span class="gw-field-value"><?php echo $gw_user_info['REQUESTED_TRANSACTION_ID']; ?></span>
+        </div>
+        <div class="gw-content-field">
           <span class="gw-field-label">Requested Course</span>
           <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null): ''; ?></span>
         </div>
         <div class="gw-content-field">
-          <span class="gw-field-label">Course College</span>
+          <span class="gw-field-label">College</span>
           <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name: ''; ?></span>
         </div>
         <div class="gw-content-field">
@@ -256,7 +260,7 @@ span.gw-field-value {
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Officer</span>
-          <span class="gw-field-value"><?php echo $gw_user_info['VALIDATION_OFFICER']; ?></span>
+          <span class="gw-field-value"><?php echo GWUtility::_gw_get_user_display_name($gw_user_info['VALIDATION_OFFICER']); ?></span>
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Feedback</span>
@@ -264,12 +268,17 @@ span.gw-field-value {
         </div>
       </div>
       <div class="gw-action-card-action">
-        <button class="button button-primary" id="gw_validate">Validate</button>
+        <?php if(empty($gw_user_info['VALIDATION_STATUS'])){ ?>
+          <span>Inactive User can't be validated.</span>
+        <?php }else { ?>
+          <button class="button button-primary" id="gw_validate">Validate</button>
+        <?php } ?>
       </div>
     </div>
   </div>
 </div>
 
+<?php if(!empty($gw_user_info['VALIDATION_STATUS'])): ?>
 <!-- The modal / dialog box, hidden somewhere near the footer -->
 <div id="gw-dialog" class="hidden" style="max-width:800px">
     <div class="dialog-content">
@@ -333,3 +342,4 @@ span.gw-field-value {
       </div>
     </div>
 </div>
+<?php endif; ?>

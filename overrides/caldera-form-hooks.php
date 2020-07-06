@@ -97,7 +97,7 @@ add_filter('caldera_forms_ajax_return', function($out, $form){
 
         $course_id = apply_filters('gw_get_course_meta', $selected_course , 'get_the_ID', null);
 
-        $entry_manager = new GWEntriesManager(1);
+        $entry_manager = new GWEntriesManager(null);
         $result = $entry_manager->request_course($user_data->{'ID'}, $course_id, json_encode($requirements_files));
 
     }
