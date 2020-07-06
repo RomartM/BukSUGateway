@@ -293,7 +293,7 @@ class GWPostResponder
                       $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
                       $field_address = sanitize_text_field($_POST['gw_student_update_address']);
 
-                      $entry_manager = new GWEntriesManager(1);
+                      $entry_manager = new GWEntriesManager($field_uid);
 
                       $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
                       $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
@@ -442,7 +442,7 @@ class GWPostResponder
     public function upload_exam_results(){
         $this->sanitizer(
           function (){ // Success
-              if(current_user_can( 'edit_users' )){
+              if(current_user_can( 'edit_users' ) || current_user_can( 'manage_exam' )){
                   // File extension
                   $extension = pathinfo($_FILES['gw-import-file']['name'], PATHINFO_EXTENSION);
                   // If file extension is 'csv'
@@ -539,7 +539,7 @@ class GWPostResponder
     public function upload_admission_info(){
         $this->sanitizer(
           function (){ // Success
-              if(current_user_can( 'edit_users' )){
+              if(current_user_can( 'edit_users' ) || current_user_can( 'manage_exam' )){
                   // File extension
                   $extension = pathinfo($_FILES['gw-import-file']['name'], PATHINFO_EXTENSION);
                   // If file extension is 'csv'
@@ -634,7 +634,7 @@ class GWPostResponder
       //gw_student_update
       $this->sanitizer(
         function (){ // Success
-            if(current_user_can( 'edit_users' )){
+            if(current_user_can( 'edit_users' ) || current_user_can( 'manage_exam' )){
                 if(
                   isset($_POST['gw_student_uid']) &&
                   isset($_POST['gw_student_update_email']) &&
@@ -645,7 +645,9 @@ class GWPostResponder
                       $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
                       $field_address = sanitize_text_field($_POST['gw_student_update_address']);
 
-                      $entry_manager = new GWEntriesManager(1);
+
+                      $user = wp_get_current_user();
+                      $entry_manager = new GWEntriesManager($user->ID);
 
                       $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
                       $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
@@ -675,7 +677,7 @@ class GWPostResponder
       //gw_student_update
       $this->sanitizer(
         function (){ // Success
-            if(current_user_can( 'edit_users' )){
+            if(current_user_can( 'edit_users' ) || current_user_can( 'manage_exam' )){
                 if(
                   isset($_POST['gw_student_uid']) &&
                   isset($_POST['gw_enrollment_officer_feedback'])
@@ -685,7 +687,9 @@ class GWPostResponder
                       $submit_action = array_keys($_POST['submit']);
                       $action = sanitize_text_field($submit_action[0]);
 
-                      $entry_manager = new GWEntriesManager(1);
+                      $user = wp_get_current_user();
+
+                      $entry_manager = new GWEntriesManager($user->ID);
 
                       $updated_count+= $entry_manager->update_entry_feedback($field_uid, $gw_enrollment_officer_feedback);
                       $updated_count+= $entry_manager->validate_entry($field_uid, strtolower($action)); // Action Type
@@ -714,7 +718,7 @@ class GWPostResponder
       //gw_semester_update
       $this->sanitizer(
         function (){ // Success
-            if(current_user_can( 'edit_users' )){
+            if(current_user_can( 'edit_users' ) || current_user_can( 'manage_exam' )){
                 if(
                   isset($_POST['gw-semester']) &&
                   isset($_POST['gw-semester-year'])
@@ -724,14 +728,7 @@ class GWPostResponder
 
                       update_option('gw_settings_semester', $field_semester);
                       update_option('gw_settings_semester_year', $field_semester_year);
-                      // $field_address = sanitize_text_field($_POST['gw_student_update_address']);
-                      //
-                      // $entry_manager = new GWEntriesManager(1);
-                      //
-                      // $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
-                      // $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
-                      // $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
-                      //
+
                       $url_components = parse_url( wp_get_referer() );
                       parse_str($url_components['query'], $params);
                       $student_update_attr = sprintf("?page=%s",  $params['page']);

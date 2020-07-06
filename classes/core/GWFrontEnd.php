@@ -78,7 +78,7 @@ class GWFrontEnd
                         break;
                     case 'pass_course_apply':
                         do_action('gw_validate_login', false, true);
-                        do_action('gw_validate_request_status', true, false);
+                        do_action('gw_validate_request_status', true, false, false);
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_course_apply'), 2);
                         break;
                     case 'pass_course_pending':

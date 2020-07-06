@@ -188,6 +188,17 @@ class GWUtility {
         return do_shortcode(stripslashes($string));
     }
 
+    // Render Shortcode
+    public static function _gw_get_user_display_name($user_id){
+      $user = get_user_by( 'ID',  $user_id );
+
+      if(empty($user)){
+        return '';
+      }
+
+      return $user->display_name;
+    }
+
     // Data encryptions
     // https://gist.github.com/tott/7544453
 
