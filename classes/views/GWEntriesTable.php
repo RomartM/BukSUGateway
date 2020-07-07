@@ -78,10 +78,10 @@ class GWEntriesTable extends WP_List_Table
 
     public function get_bulk_actions()
     {
-        $actions = array(
-            'delete'    => 'Delete'
-        );
-        return $actions;
+        // $actions = array(
+        //     'delete'    => 'Delete'
+        // );
+        return array();
     }
 
     public function get_sortable_columns()
@@ -106,7 +106,7 @@ class GWEntriesTable extends WP_List_Table
         $exam_entries_instance = new GWDataTable();
 
         if (empty($_REQUEST['tab'])) {
-            return;
+            $_REQUEST['tab'] = 'inactive';
         }
 
         $status = strtolower(esc_sql( $_REQUEST['tab'] ));
@@ -182,6 +182,11 @@ class GWEntriesTable extends WP_List_Table
           }elseif ( $exam_status == 'failed') {
             $query.= " AND EXAM_STATUS = 'FAILED'";
           }
+        }
+
+        if($status !== 'inactive'){
+            $college_slug = implode("', '", GWUtility::_gw_get_user_taxonomies('slug'));
+            $query .= " AND REQUESTED_COURSE_COLLEGE IN ('{$college_slug}')";
         }
 
         $query.= "AND {$validation_query}";

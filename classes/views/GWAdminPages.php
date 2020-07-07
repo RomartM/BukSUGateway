@@ -128,9 +128,14 @@ class GWAdminPages
      */
     public function gw_exam_result_manager_contents()
     {
-
         if (isset($_GET['sub'])) {
             $sub_value = sanitize_text_field($_GET['sub']);
+            $user_id = sanitize_text_field($_GET['id']);
+
+            $data_source = new GWDataTable();
+            $result = $data_source->get_requested_course_college($user_id);
+            $college_capabilites = GWUtility::_gw_get_user_taxonomies('slug');
+
             switch ($sub_value) {
               case 'gw-student-profile':
                 $this->gw_student_profile();
@@ -139,6 +144,11 @@ class GWAdminPages
                 $this->gw_student_update();
                 break;
               case 'gw-student-validate':
+
+                if (array_search($result, $college_capabilites) === false) {
+                  wp_die("Not allowed");
+                }
+
                 $this->gw_student_validate();
                 break;
             }
@@ -146,8 +156,11 @@ class GWAdminPages
             return;
         }
 
+        $colleges = implode(", ", GWUtility::_gw_get_user_taxonomies('name'));
+
         $this->page_body(
-            '/templ/admin-exam-result-manager.php'
+            '/templ/admin-exam-result-manager.php',
+            "Exam Results ({$colleges})"
         );
     }
 }

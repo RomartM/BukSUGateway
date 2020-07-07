@@ -15,6 +15,10 @@ $entries_tab = new GWTabs($tab_values, array("slug"=>"content_label", "content_i
 $entries_tab->build(function ($tab, $content_id) {
     global $gwEntriesTable;
 
+    if (empty($_REQUEST['tab'])) {
+        $_REQUEST['tab'] = 'inactive';
+    }
+
     if (((!empty($_REQUEST['tab'])) ? $_REQUEST['tab'] : '') == 'inactive') {
         $gwEntriesTable->views();
     } ?>

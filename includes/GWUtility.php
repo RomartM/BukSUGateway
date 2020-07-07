@@ -161,6 +161,16 @@ class GWUtility {
         exit();
     }
 
+    public static function _gw_generate_file_url($user_id, $filename){
+      $url_to_file = add_query_arg( array(
+          'action'=> 'file',
+          'id'=> $user_id,
+          'filename' => $filename,
+          'token' => wp_create_nonce( $user_id ),
+      ),  home_url());
+      return $url_to_file;
+    }
+
     public static function _gw_remove_http($url) {
         $disallowed = array('http://', 'https://');
         foreach($disallowed as $d) {
@@ -175,6 +185,42 @@ class GWUtility {
         $parts = parse_url($url);
         parse_str($parts['query'], $query);
         return $query;
+    }
+
+    public static function _gw_get_user_taxonomies($tax_type='meta')
+    {
+      $current_user = wp_get_current_user();
+      $meta_values = get_user_meta($current_user->ID, USER_CATEGORY_META_KEY, true);
+
+      $user_category_terms = get_terms(array(
+        'taxonomy' => USER_CATEGORY_NAME,
+        'hide_empty' => 0
+      ));
+
+      $allowed_taxonomies = array();
+      $allowed_taxonomies_names = array();
+      $allowed_taxonomies_slug = array();
+      foreach ( $user_category_terms as $term ) {
+          if(array_search($term->term_id, $meta_values) !== false){
+            array_push($allowed_taxonomies, array(
+              "term_id"=>$term->term_id,
+              "name"=>$term->name,
+              "slug"=>$term->slug
+            ));
+            array_push($allowed_taxonomies_names, $term->name );
+            array_push($allowed_taxonomies_slug, $term->slug );
+          }
+      }
+
+      if($tax_type == 'meta'){
+        return $allowed_taxonomies;
+      } elseif ($tax_type == 'name') {
+        return $allowed_taxonomies_names;
+      } elseif ($tax_type == 'slug') {
+        return $allowed_taxonomies_slug;
+      } else {
+        return "";
+      }
     }
 
     // Get Current Page URL

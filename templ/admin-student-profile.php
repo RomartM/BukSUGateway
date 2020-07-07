@@ -29,7 +29,7 @@ function _gw_get_submitted_files($uid){
   }
   $file_lists = "<ul class=\"gw-submitted-files\">";
   foreach ($field as $key => $value) {
-    $file_lists.="<li><a href=\"" . $value . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
+    $file_lists.="<li><a href=\"" . GWUtility::_gw_generate_file_url($uid, $value) . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
   }
   $file_lists.= "</ul>";
   return $file_lists;
@@ -262,6 +262,16 @@ span.gw-field-value {
           <span class="gw-field-label">Officer</span>
           <span class="gw-field-value"><?php echo GWUtility::_gw_get_user_display_name($gw_user_info['VALIDATION_OFFICER']); ?></span>
         </div>
+        <?php if($gw_user_info['VALIDATION_STATUS'] == 'approved'): ?>
+        <div class="gw-content-field">
+          <span class="gw-field-label">Certificate of Registration</span>
+          <?php
+          $cor_file_name = "cor.pdf";
+          $cor_link = GWUtility::_gw_generate_file_url($gw_user_info['id'], $cor_file_name)
+           ?>
+          <span class="gw-field-value"><a href="<?php echo $cor_link ?>" target="_blank">View COR</a></span>
+        </div>
+      <?php endif; ?>
         <div class="gw-content-field">
           <span class="gw-field-label">Feedback</span>
           <span class="gw-field-value"><?php echo $gw_user_info['VALIDATION_FEEDBACK']; ?></span>
@@ -319,7 +329,7 @@ span.gw-field-value {
             do_action('gw_admin_notice', $data);
           }
            ?>
-          <form method='post' action='<?php echo $action_url; ?>'>
+          <form method='post' action='<?php echo $action_url; ?>' enctype='multipart/form-data'>
               <input type="hidden" name="gw_request_validation_nonce" value="<?php echo $update_nonce; ?>"/>
               <input type="hidden" name="action" value="gw_request_validation"/>
               <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['id'] ?>"/>

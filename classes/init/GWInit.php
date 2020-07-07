@@ -10,7 +10,7 @@ if (! defined('ABSPATH')) {
 class GWInit
 {
     // class instance
-    static $instance;
+    public static $instance;
     /**
      *  Set things up.
      *  @since 1.0
@@ -47,6 +47,8 @@ class GWInit
 
         // Add custom link for our plugin
         add_filter('plugin_action_links_' . WP_GW_BASE_NAME, array( $this, 'wp_gw_plugin_action_links' ));
+
+        //$this->wp_gw_activate(); //Force Upgrade Database
     }
 
     /** Singleton instance */
@@ -258,6 +260,9 @@ class GWInit
 
         wp_enqueue_style('gw-admin');
         wp_enqueue_script('gw-admin');
+
+        // Get file resources
+        $this->setFileResources();
     }
 
     /**
@@ -268,6 +273,56 @@ class GWInit
         wp_register_style('gw-wp-generic', WP_GW_URL . 'assets/css/gw-generic-style.css', array());
         wp_register_script('gw-wp-generic', WP_GW_URL . 'assets/js/gw-generic-script.js', array('jquery'));
         wp_localize_script('gw-wp-generic', 'gwPublicAjax', array( 'ajaxurl' => admin_url('admin-ajax.php'),  'action' => 'resend_email_public'));
+
+        // Get file resources
+        $this->setFileResources();
+    }
+
+    public function setFileResources()
+    {
+        if (isset($_REQUEST['action']) && isset($_REQUEST['filename']) && isset($_REQUEST['token']) && isset($_REQUEST['id'])) {
+            ob_clean();
+
+            $action = sanitize_text_field($_REQUEST['action']);
+            $user_id = sanitize_text_field($_REQUEST['id']);
+            $filename = sanitize_text_field($_REQUEST['filename']);
+            $token = sanitize_text_field($_REQUEST['token']);
+
+            if ($action == 'file') {
+                if (! wp_verify_nonce($token, $user_id)) {
+                    echo "404 Not Found";
+                    die();
+                }
+
+                $wp_upload_dir = wp_get_upload_dir()['basedir'];
+                $upload_directory = $wp_upload_dir . '/user-requirements/'. $user_id .'';
+
+                $file_link = $upload_directory . "/" . $filename;
+                if (is_file($file_link)) {
+                    $this->getFile($file_link);
+                } else {
+                    echo "404 Not Found";
+                }
+            }
+            die();
+        }
+    }
+
+    public function getMIME($fg_content)
+    {
+        $file_info = new finfo(FILEINFO_MIME_TYPE);
+        $mime_type = $file_info->buffer($fg_content);
+        return $mime_type;
+    }
+
+    public function getFile($file_link)
+    {
+        if (false !== ($data = file_get_contents($file_link))) {
+            header('Content-type: '. $this->getMIME($data));
+            echo $data;
+        } else {
+            echo "404 Not Found";
+        }
     }
 
     /**

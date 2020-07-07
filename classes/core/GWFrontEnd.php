@@ -102,8 +102,8 @@ class GWFrontEnd
                         apply_filters('gw_template_prepare', array( $this, 'gw_pass_enrollment_verify'), 4);
                         break;
                     case 'pass_enrollment_welcome':
-                        do_action('gw_validate_request_status', false, true);
-                        do_action('gw_validate_login', false, true);
+                    do_action('gw_validate_login', false, true);
+                    do_action('gw_validate_request_status', false, true);
                         $this->gw_pass_enrollment_welcome();
                         break;
                     default:
@@ -335,11 +335,16 @@ class GWFrontEnd
     // Welcome to University
     public function gw_pass_enrollment_welcome()
     {
-        echo "<style type=\"text/css\" media=\"print\">
-              .gw-main-header, .no-print { display: none; }
-              </style><style>#wpadminbar{display:none;}
+        echo "<style>#wpadminbar{display:none;}
               .gw-clipboard{-webkit-user-select: all;-moz-user-select:all;-ms-user-select:all;user-select:all;}
               span.gw-clipboard { background-color: #9e9e9e70; border-radius: 7px; padding: 2px 7px; float: right; }
+              .only-print {
+                display:none;
+              }
+              @media print {
+                .gw-main-header, .no-print { display: none; }
+                .only-print { display: block !important }
+              }
               </style>";
         echo do_shortcode('[elementor-template id="680"]');
     }

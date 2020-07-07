@@ -1,6 +1,6 @@
 <?php
 
-function _gw_get_submitted_files($validation_req_array){
+function _gw_get_submitted_files($uid, $validation_req_array){
   $field = json_decode($validation_req_array);
   $styles = "<style>ul.gw-submitted-files {padding: 0px 25px;list-style: decimal;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
   echo $styles;
@@ -10,7 +10,7 @@ function _gw_get_submitted_files($validation_req_array){
   }
   $file_lists = "<ul class=\"gw-submitted-files\">";
   foreach ($field as $key => $value) {
-    $file_lists.="<li><a href=\"" . $value . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
+    $file_lists.="<li><a href=\"" . GWUtility::_gw_generate_file_url($uid, $value) . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
   }
   $file_lists.= "</ul>";
   return $file_lists;
@@ -368,7 +368,7 @@ if(!empty($updated_count)){
           </div>
           <div class="gw-form-input-group gw-i-req">
             <label for="gwStudentValidationReq">Validation Requirements Submitted</label>
-            <?php echo _gw_get_submitted_files($gw_user_info['VALIDATION_REQUIREMENTS']); ?>
+            <?php echo _gw_get_submitted_files($user_data->{'ID'}, $gw_user_info['VALIDATION_REQUIREMENTS']); ?>
           </div>
           <div class="gw-form-input-group gw-i-status">
             <label for="gwStudentValidationStatus">Validation Status</label>

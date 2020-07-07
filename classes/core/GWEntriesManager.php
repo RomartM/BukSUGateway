@@ -51,14 +51,37 @@ class GWEntriesManager
       ));
 
       $data_table->generateTC($id, $course_id);
+      $course_college_slug = apply_filters('gw_get_course_meta_id', $course_id, 'get_the_category', null)[0]->slug;
 
       $action = $wpdb-> update(
           $this->data_table_instance->exam_results_table_name,
           array( 'REQUESTED_COURSE_ID'=> $course_id,
+                 'REQUESTED_COURSE_COLLEGE'=>$course_college_slug,
                  'VALIDATION_REQUIREMENTS' => $requirements_files,
                  'VALIDATION_STATUS' => 'pending' ),
           array( 'id' => $id ),
           array( '%s', '%s', '%s' )
+      );
+      return $action;
+    }
+
+    public function update_requirements($id, $requirements_files){
+      global $wpdb;
+
+      // Validation Log Format
+      $data_table = new GWDataTable();
+      $data_table->insertLog($id, 'validation', json_encode(
+        array(
+          "officer" =>  $this->current_enrollment_officer,
+          "status"    =>  "auto_delete"
+        )
+      ));
+
+      $action = $wpdb-> update(
+          $this->data_table_instance->exam_results_table_name,
+          array( 'VALIDATION_REQUIREMENTS' => $requirements_files ),
+          array( 'id' => $id ),
+          array( '%s', '%s' )
       );
       return $action;
     }
