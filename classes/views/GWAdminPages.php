@@ -10,6 +10,7 @@ if (! defined('ABSPATH')) {
 class GWAdminPages
 {
     protected $wp_option_prefix;
+    private $user_data;
 
     /**
      * GWAdminPages constructor.
@@ -17,6 +18,9 @@ class GWAdminPages
      */
     public function __construct($option_prefix="wp_gw_opt")
     {
+        $this->user_data = apply_filters('gw_session_user_validate', function($raw){
+          return $raw;
+        });
         $this->wp_option_prefix = $option_prefix;
     }
 
@@ -67,6 +71,17 @@ class GWAdminPages
     {
         $this->page_body(
             '/templ/admin-upload-exam.php'
+        );
+    }
+
+    /**
+     * Create upload old student view
+     */
+    public function gw_upload_old_student()
+    {
+        $this->page_body(
+            '/templ/import/old-student.php',
+            'Upload Old Student Records'
         );
     }
 
@@ -131,9 +146,10 @@ class GWAdminPages
         if (isset($_GET['sub'])) {
             $sub_value = sanitize_text_field($_GET['sub']);
             $user_id = sanitize_text_field($_GET['id']);
+            $user_typ = $this->user_data["utyp"];
 
             $data_source = new GWDataTable();
-            $result = $data_source->get_requested_course_college($user_id);
+            $result = $data_source->get_requested_course_college($user_id, $user_typ);
             $college_capabilites = GWUtility::_gw_get_user_taxonomies('slug');
 
             switch ($sub_value) {
@@ -146,7 +162,7 @@ class GWAdminPages
               case 'gw-student-validate':
 
                 if (array_search($result, $college_capabilites) === false) {
-                  wp_die("Not allowed");
+                    wp_die("Not allowed");
                 }
 
                 $this->gw_student_validate();
@@ -160,7 +176,89 @@ class GWAdminPages
 
         $this->page_body(
             '/templ/admin-exam-result-manager.php',
-            "Exam Results ({$colleges})"
+            "Pre Listing ({$colleges})"
         );
+    }
+
+    public function gw_pre_listing_sub_pages($student_type)
+    {
+        if (isset($_GET['sub'])) {
+            $sub_value = sanitize_text_field($_GET['sub']);
+            $user_id = sanitize_text_field($_GET['id']);
+            $user_typ = $this->user_data["utyp"];
+
+            $data_source = new GWDataTable();
+            $result = $data_source->get_requested_course_college($user_id, $user_typ);
+            $college_capabilites = GWUtility::_gw_get_user_taxonomies('slug');
+
+            switch ($sub_value) {
+            case 'gw-student-profile':
+              $this->gw_student_profile();
+              break;
+            case 'gw-student-update':
+              $this->gw_student_update();
+              break;
+            case 'gw-student-validate':
+
+              if (array_search($result, $college_capabilites) === false) {
+                  wp_die("Not allowed");
+              }
+
+              $this->gw_student_validate();
+              break;
+          }
+            echo sprintf('<div class="gw-parent-action" style="margin: 30px 0;"><a href="?page=%s" class="button button-secondary">Back to Student Lists</a></div>', $_REQUEST['page']);
+            return;
+        }
+    }
+
+
+    public function gw_pre_listing_tabs()
+    {
+        $tab_values = array(
+        array("content_label"=>"Pending", "content_id"=>"pending"),
+        array("content_label"=>"Approved", "content_id"=>"approved"),
+        array("content_label"=>"Denied", "content_id"=>"denied"),
+        array("content_label"=>"Inactive", "content_id"=>"inactive")
+      );
+
+        return $tab_values;
+    }
+
+
+    // New Gateway Dashboard
+
+    public function gw_pre_listing()
+    {
+        $this->page_body(
+              '/templ/dashboard/dashboard.php',
+              "My Dashboard"
+          );
+    }
+
+    public function gw_pre_listing_new()
+    {
+        $this->gw_pre_listing_sub_pages("new");
+        $colleges = implode(", ", GWUtility::_gw_get_user_taxonomies('name'));
+
+        if(!isset($_GET['sub'])){
+          $this->page_body(
+              '/templ/dashboard/new-student.php',
+              "Pre Listing - New Students ({$colleges})"
+          );
+        }
+    }
+
+    public function gw_pre_listing_old()
+    {
+        $this->gw_pre_listing_sub_pages("old");
+        $colleges = implode(", ", GWUtility::_gw_get_user_taxonomies('name'));
+
+        if(!isset($_GET['sub'])){
+          $this->page_body(
+              '/templ/dashboard/old-student.php',
+              "Pre Listing - Old Students ({$colleges})"
+          );
+        }
     }
 }
