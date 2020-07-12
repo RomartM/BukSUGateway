@@ -8,8 +8,13 @@ jQuery(document).ready(function($) {
       dlg.dialog('open');
     });
 
+    $('input[name="submit[denied]"], input[name="submit[pending]"]').click(function() {
+      $('#GWUploadCOR').removeAttr('required');
+      $('.formValidate').submit();
+    });
+
     dlg.dialog({
-        title: 'Validate Student',
+        title: 'Evaluate Student',
         dialogClass: 'wp-dialog',
         autoOpen: false,
         draggable: true,
