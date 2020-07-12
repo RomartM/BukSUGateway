@@ -79,6 +79,19 @@ class GWUtility {
         return date("{$date_format} {$time_format}", current_time('timestamp'));
     }
 
+    public static function gw_object_to_array($data) { // fontanos
+      if (is_object($data)) {
+        $data = get_object_vars($data);
+      }
+
+      if (is_array($data)) {
+        return array_map(__METHOD__, $data);
+      }
+      else {
+        return $data;
+      }
+    }
+
     /**
      * Prints message (string or array) in the debug.log file
      *
@@ -185,6 +198,10 @@ class GWUtility {
         $parts = parse_url($url);
         parse_str($parts['query'], $query);
         return $query;
+    }
+
+    public static function _format_N($str){
+      return str_replace("Ñ", "ñ", mb_convert_encoding($str, 'cp1252', 'utf-8'));
     }
 
     public static function _gw_get_user_taxonomies($tax_type='meta')
