@@ -4,11 +4,19 @@ if (! defined( 'ABSPATH' ) ){
     exit;
 }
 
-$user_data = apply_filters( 'gw_current_user_login', null );
+$user_obj = apply_filters('gw_session_login_validate', function($raw){
+      return $raw;
+});
 
-$user_id = sanitize_text_field($user_data->{'ID'});
-$entry_manager = new GWEntriesManager(1);
-$gw_user_info = $entry_manager->get_entry_information($user_id);
+$user_id = $user_obj["uid"];
+$user_typ = $user_obj["utyp"];
+$data_source = new GWDataTable();
+
+if($user_typ == "old"){
+  $gw_user_info = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+}else{
+  $gw_user_info = $data_source->getExamResultData($user_id);
+}
 
 if(empty($gw_user_info)){
   //do_action('gw_admin_notice_no_student');

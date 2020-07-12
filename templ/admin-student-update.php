@@ -8,9 +8,18 @@ if(!isset($_GET['id'])){
   do_action('gw_admin_notice_no_student');
 }
 
+$page_name = sanitize_text_field($_GET['page']);
 $user_id = sanitize_text_field($_GET['id']);
-$entry_manager = new GWEntriesManager(1);
-$gw_user_info = $entry_manager->get_entry_information($user_id);
+$data_source = new GWDataTable();
+$user_type = "";
+
+if($page_name == "gw-pre-listing-old"){
+  $gw_user_info = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+  $user_type = "old";
+}else{
+  $gw_user_info = $data_source->getExamResultData($user_id);
+  $user_type = "new";
+}
 
 if(empty($gw_user_info)){
   do_action('gw_admin_notice_no_student');
@@ -56,7 +65,13 @@ textarea#gwStudentAddress {
 </style>
 <div class="gw-student-summary">
     <h4><?php echo sprintf("%s %s %s %s", $gw_user_info['FIRST_NAME'], $gw_user_info['MIDDLE_NAME'], $gw_user_info['LAST_NAME'], $gw_user_info['NAME_SUFFIX']); ?></h4>
-    <h5><?php echo $gw_user_info['EXAMINEE_NO'] ?></h5>
+    <h5><?php
+    if($page_name == "gw-pre-listing-old"){
+      echo $gw_user_info['ID_NUMBER'];
+    }else{
+      echo $gw_user_info['EXAMINEE_NO'];
+    }
+    ?></h5>
 </div>
 <?php
 
@@ -76,7 +91,8 @@ if(isset($_GET['updated'])){
 <form method='post' action='<?php echo $action_url; ?>'>
     <input type="hidden" name="gw_student_update_nonce" value="<?php echo $update_nonce; ?>"/>
     <input type="hidden" name="action" value="gw_student_update"/>
-    <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['id'] ?>"/>
+    <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['id']; ?>"/>
+    <input type="hidden" name="gw_student_utyp" value="<?php echo $user_type; ?>"/>
     <div class="gw-form-contact">
       <div class="gw-form-input-group">
           <label for="gwStudentEmail">Email Address:</label>

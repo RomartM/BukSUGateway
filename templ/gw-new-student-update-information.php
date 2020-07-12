@@ -1,5 +1,7 @@
 <?php
 
+
+
 function _gw_get_submitted_files($uid, $validation_req_array){
   $field = json_decode($validation_req_array);
   $styles = "<style>ul.gw-submitted-files {padding: 0px 25px;list-style: decimal;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
@@ -10,6 +12,9 @@ function _gw_get_submitted_files($uid, $validation_req_array){
   }
   $file_lists = "<ul class=\"gw-submitted-files\">";
   foreach ($field as $key => $value) {
+    if(basename($value) == 'cor.pdf'){
+      continue;
+    }
     $file_lists.="<li><a href=\"" . GWUtility::_gw_generate_file_url($uid, $value) . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
   }
   $file_lists.= "</ul>";
@@ -231,6 +236,12 @@ function _gw_get_submitted_files($uid, $validation_req_array){
     background-color: #4CAF50;
 }
 
+.gw-html-content {
+    background-color: white;
+    padding: 10px;
+    border-radius: 10px;
+}
+
 div#modal-216b767 > .uael-content {
     border-radius: 10px;
     overflow: hidden;
@@ -257,8 +268,10 @@ if(!empty($updated_count)){
   <form class="main-info-form" method='post' action='<?php echo $action_url; ?>'>
     <input type="hidden" name="gw_student_update_info_self_nonce" value="<?php echo $update_nonce; ?>" />
     <input type="hidden" name="action" value="gw_student_update_info_self" />
-    <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['exam_id'] ?>" />
+    <input type="hidden" name="gw_student_uid" value="<?php echo isset($gw_user_info['exam_id'])? $gw_user_info['exam_id'] : $this->user_data["uid"] ?>" />
+    <input type="hidden" name="gw_student_typ" value="<?php echo $this->user_data["utyp"] ?>" />
     <div class="gw-form-group-wrapper">
+      <?php if($this->user_data["utyp"] == "new"): ?>
       <div class="gw-form-group gw-examinee-info">
         <div class="gw-form-group-title">Examinee Information</div>
         <div class="gw-form-input-group-wrapper">
@@ -288,6 +301,7 @@ if(!empty($updated_count)){
           </div>
         </div>
       </div>
+      <?php endif; ?>
       <div class="gw-form-group gw-personal-info">
         <div class="gw-form-group-title">Personal Information</div>
         <div class="gw-form-input-group-wrapper">
@@ -299,9 +313,9 @@ if(!empty($updated_count)){
             <label for="gwStudent">First Name</label>
             <input type="text" id="gwStudent" name="gw_student_update[first_name]" value="<?php echo $gw_user_info['FIRST_NAME'] ?>" required/>
           </div>
-          <div class="gw-form-input-group gw-input-required">
+          <div class="gw-form-input-group">
             <label for="gwStudentFirstName">Middle Name</label>
-            <input type="text" id="gwStudentFirstName" name="gw_student_update[middle_name]" value="<?php echo $gw_user_info['MIDDLE_NAME'] ?>" required/>
+            <input type="text" id="gwStudentFirstName" name="gw_student_update[middle_name]" value="<?php echo $gw_user_info['MIDDLE_NAME'] ?>"/>
           </div>
           <div class="gw-form-input-group">
             <label for="gwStudentNameSuffix">Name Suffix</label>
@@ -337,11 +351,11 @@ if(!empty($updated_count)){
               </div>
               <div class="gw-form-radio-group">
                 <input type="radio" id="gwStudentMerried" name="gw_student_update[civil_status]" value="merried" <?php echo strtolower($gw_user_info['CIVIL_STATUS']) == 'merried'? 'checked' : '' ?> required>
-                <label for="gwStudentMerried">Merried</label>
+                <label for="gwStudentMerried">Married</label>
               </div>
               <div class="gw-form-radio-group">
                 <input type="radio" id="gwStudentWidowed" name="gw_student_update[civil_status]" value="widowed" <?php echo strtolower($gw_user_info['CIVIL_STATUS']) == 'widowed'? 'checked' : '' ?> required>
-                <label for="gwStudentWidowed">Widowed</label>
+                <label for="gwStudentWidowed">Widow/er</label>
               </div>
               <div class="gw-form-radio-group">
                 <input type="radio" id="gwStudentDivorced" name="gw_student_update[civil_status]" value="divorced" <?php echo strtolower($gw_user_info['CIVIL_STATUS']) == 'divorced'? 'checked' : '' ?> required>
@@ -358,17 +372,19 @@ if(!empty($updated_count)){
             <label for="gwStudentRequestedCourse">Course Selected</label>
             <input type="text" id="gwStudentRequestedCourse" name="gw_student_requested_course" value="<?php echo apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_title', null); ?>" readonly/>
           </div>
+          <?php if($this->user_data["utyp"] == "new"): ?>
           <div class="gw-form-input-group gw-i-pref">
             <label for="gwStudentCoursePref">Course Preference</label>
             <input type="text" id="gwStudentCoursePref" name="gw_student_course_pref" value="<?php echo ucwords(strtolower($gw_user_info['COURSE_PREF'])) ?>" readonly/>
           </div>
+          <?php endif; ?>
           <div class="gw-form-input-group gw-i-level">
             <label for="gwStudentDegreeLevel">Level</label>
             <input type="text" id="gwStudentDegreeLevel" name="gw_student_degree_level" value="<?php echo ucfirst($gw_user_info['DEGREE_LEVEL']) ?>" readonly/>
           </div>
           <div class="gw-form-input-group gw-i-req">
             <label for="gwStudentValidationReq">Validation Requirements Submitted</label>
-            <?php echo _gw_get_submitted_files($user_data->{'ID'}, $gw_user_info['VALIDATION_REQUIREMENTS']); ?>
+            <?php echo _gw_get_submitted_files($user_id, $gw_user_info['VALIDATION_REQUIREMENTS']); ?>
           </div>
           <div class="gw-form-input-group gw-i-status">
             <label for="gwStudentValidationStatus">Validation Status</label>
@@ -380,7 +396,9 @@ if(!empty($updated_count)){
           </div>
           <div class="gw-form-input-group gw-i-remarks">
             <label for="gwStudentValidationFeedback">Validation Remarks</label>
-            <textarea id="gwStudentValidationFeedback" name="gw_student_validation_feedback" rows="3" readonly><?php echo $gw_user_info['VALIDATION_FEEDBACK'] ?></textarea>
+            <div class="gw-html-content" id="gwStudentValidationFeedback">
+              <?php echo $gw_user_info['VALIDATION_FEEDBACK'] ?>
+            </div>
           </div>
         </div>
       </div>
@@ -396,8 +414,8 @@ if(!empty($updated_count)){
             <input type="tel" id="gwStudentContactNumber" name="gw_student_update[contact_number]" value="<?php echo $gw_user_info['CONTACT_NUMBER'] ?>" required/>
           </div>
           <div class="gw-form-input-group gw-i-address">
-            <label for="gwStudentAddress">Address</label>
-            <textarea id="gwStudentAddress" name="gw_student_update[address]" rows="5"><?php echo $gw_user_info['ADDRESS'] ?></textarea>
+<!--             <label for="gwStudentAddress">Address</label>
+            <textarea id="gwStudentAddress" name="gw_student_update[address]" rows="5"></textarea> -->
           </div>
           <div class="gw-form-input-group gw-i-province gw-input-required">
             <label for="gwStudentProvince">Province</label>
@@ -421,6 +439,7 @@ if(!empty($updated_count)){
           </div>
         </div>
       </div>
+      <?php if($this->user_data["utyp"] == "new"): ?>
       <div class="gw-form-group gw-school-info">
         <div class="gw-form-group-title">School Information</div>
         <div class="gw-form-input-group-wrapper">
@@ -450,6 +469,7 @@ if(!empty($updated_count)){
           </div>
         </div>
       </div>
+      <?php endif; ?>
     </div>
     <div class="gw-form-action">
       <input type="submit" name="submit" id="submit" class="button button-primary" value="Confirm Credentials">

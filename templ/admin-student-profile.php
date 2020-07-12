@@ -9,8 +9,17 @@ if(!isset($_GET['id'])){
 }
 
 $user_id = sanitize_text_field($_GET['id']);
-$entry_manager = new GWEntriesManager(1);
-$gw_user_info = $entry_manager->get_entry_information($user_id);
+$page_name = sanitize_text_field($_GET['page']);
+$data_source = new GWDataTable();
+
+if($page_name == "gw-pre-listing-old"){
+  $gw_user_info = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+  $user_type = "old";
+}else{
+  $gw_user_info = $data_source->getExamResultData($user_id);
+  $user_type = "new";
+}
+
 
 if(empty($gw_user_info)){
   do_action('gw_admin_notice_no_student');
@@ -18,9 +27,16 @@ if(empty($gw_user_info)){
 
 function _gw_get_submitted_files($uid){
   $data_source = new GWDataTable();
-  $result = $data_source->getExamResultData($uid);
+  $page_name = sanitize_text_field($_GET['page']);
+
+  if($page_name == "gw-pre-listing-old"){
+    $result = GWUtility::gw_object_to_array($data_source->getOldStudentData($uid));
+  }else{
+    $result = $data_source->getExamResultData($uid);
+  }
 
   $field = json_decode($result['VALIDATION_REQUIREMENTS']);
+
   $styles = "<style>ul.gw-submitted-files {padding: 0px 25px;list-style: decimal;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
   echo $styles;
 
@@ -61,7 +77,31 @@ span.gw-field-value {
   display: grid;
   grid-column-gap: 10px;
   grid-row-gap: 10px;
-  grid-template-columns: 30% 40% auto;
+  grid-template-areas:
+   "gw-student gw-contact <?php echo ($user_type == "new")? 'gw-exam' : 'gw-contact'?>"
+   "gw-requested gw-validation gw-validation";
+}
+
+.gw-action-cards.gw-exam {
+    grid-area: gw-exam;
+}
+
+.gw-action-cards.gw-student {
+    grid-area: gw-student;
+}
+
+.gw-action-cards.gw-requested {
+    grid-area: gw-requested;
+}
+
+.gw-action-cards.gw-contact {
+    grid-area: gw-contact;
+	display: flex;
+    flex-direction: column;
+}
+
+.gw-action-cards.gw-validation {
+    grid-area: gw-validation;
 }
 
 .gw-content-field {
@@ -98,7 +138,7 @@ span.gw-field-value {
     overflow: overlay;
 }
 
-.gw-action-cards.gw-exam-failed * {
+.gw-action-cards.gw-exam-failed *, .gw-action-cards.gw-status-inactive * {
     pointer-events: none;
     filter: blur(2px) grayscale(1);
     -webkit-touch-callout: none;
@@ -116,8 +156,7 @@ span.gw-field-value {
                                   supported by Chrome, Edge, Opera and Firefox */
 }
 
-.gw-action-cards.gw-exam-failed::before {
-    content: "Validation is not applicable due to exam status.";
+.gw-action-cards.gw-exam-failed::before, .gw-action-cards.gw-status-inactive::before {
     font-size: 13px;
     font-weight: 600;
     height: 20px;
@@ -129,6 +168,15 @@ span.gw-field-value {
     right: 0;
     margin: auto;
 }
+
+.gw-action-cards.gw-exam-failed::before {
+	content: "Evaluation is not applicable due to exam status.";
+}
+
+.gw-action-cards.gw-status-inactive::before {
+	content: "Inactive user can not be evaluated.";
+}
+
 
 .button.button-error {
     color: #880E4F;
@@ -146,11 +194,20 @@ span.gw-field-value {
     border-color: #adadad;
 }
 
+.gw-repeater-lists {
+    font-size: 20px;
+}
+
+.gw-repeater-lists p {
+    margin-top: 5px;
+}
+
 </style>
 
 <div class="gw-student-profile">
   <div class="gw-wrapper">
-    <div class="gw-action-cards">
+    <?php if($page_name == "gw-pre-listing-new"): ?>
+    <div class="gw-action-cards gw-exam">
       <div class="gw-action-card-title">Examinee Information</div>
       <div class="gw-action-card-content">
         <div class="gw-content-field">
@@ -183,10 +240,15 @@ span.gw-field-value {
         </div>
       </div>
       <div class="gw-action-card-action"></div>
-    </div>
-    <div class="gw-action-cards">
+    </div> <!--- Exam Information --->
+    <?php endif; ?>
+    <div class="gw-action-cards gw-student">
       <div class="gw-action-card-title">Student Information</div>
       <div class="gw-action-card-content">
+        <div class="gw-content-field">
+          <span class="gw-field-label">ID Number</span>
+          <span class="gw-field-value"><?php echo $gw_user_info['ID_NUMBER']; ?></span>
+        </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Last Name</span>
           <span class="gw-field-value"><?php echo $gw_user_info['LAST_NAME']; ?></span>
@@ -213,13 +275,27 @@ span.gw-field-value {
         </div>
       </div>
       <div class="gw-action-card-action"></div>
-    </div>
-    <div class="gw-action-cards gw-announcements">
-      <div class="gw-action-card-title">Announcements Feed</div>
+    </div> <!--- Student Information --->
+  	<?php if(!empty($gw_user_info['VALIDATION_STATUS'])): ?>
+    <div class="gw-action-cards gw-requested">
+      <div class="gw-action-card-title">Requested Course Requirements</div>
       <div class="gw-action-card-content">
+      	<?php 
+      		$req_list = apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'], 'get_field', 'requirements');
+        		
+        		if(!empty($req_list)){
+                	echo "<style>.gw-repeater-item h5 {margin-bottom: 0;margin-top: 10px;}</style>";
+                	$lists_html = "<div class=\"gw-repeater-lists\">";
+                	forEach($req_list as $item){
+                    	$lists_html .= sprintf("<div class=\"gw-repeater-item\"><h5>%s</h5><div class=\"gw-repeater-desc\">%s</div></div>", $item["label"], $item["description"]);
+                    }
+                	echo $lists_html."</div>";
+                }
+      	?>
       </div>
-    </div>
-    <div class="gw-action-cards">
+    </div> <!--- Requested Course Information --->
+  	<?php endif; ?>
+    <div class="gw-action-cards gw-contact"> 
       <div class="gw-action-card-title">Contact Information</div>
       <div class="gw-action-card-content">
         <div class="gw-content-field">
@@ -238,12 +314,19 @@ span.gw-field-value {
       <div class="gw-action-card-action">
         <?php echo sprintf('<a href="?page=%s&sub=%s&id=%s" class="button button-primary">Update</a>', $_REQUEST['page'], 'gw-student-update' , $gw_user_info['id']); ?>
       </div>
-    </div>
-    <div class="gw-action-cards gw-exam-<?php echo strtolower($gw_user_info['EXAM_STATUS']); ?>">
+    </div> <!--- Contact Information --->
+    <div class="gw-action-cards gw-validation <?php
+      if($user_type == "new"){
+        echo 'gw-exam-'.strtolower($gw_user_info['EXAM_STATUS']);
+      }
+      if(empty($gw_user_info['VALIDATION_STATUS'])){
+        	echo ' gw-status-inactive';
+      }
+     ?>">
       <div class="gw-action-card-title">Validation Information</div>
       <div class="gw-action-card-content">
         <div class="gw-content-field">
-          <span class="gw-field-label">Transaction ID</span>
+          <span class="gw-field-label">Reference No.</span>
           <span class="gw-field-value"><?php echo $gw_user_info['REQUESTED_TRANSACTION_ID']; ?></span>
         </div>
         <div class="gw-content-field">
@@ -252,7 +335,7 @@ span.gw-field-value {
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">College</span>
-          <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))?apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name: ''; ?></span>
+          <span class="gw-field-value"><?php echo (!empty($gw_user_info['REQUESTED_COURSE_ID']))? (!empty(apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name)? apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'] , 'get_the_category', null)[0]->cat_name : '') : ''; ?></span>
         </div>
         <div class="gw-content-field">
           <span class="gw-field-label">Status</span>
@@ -273,18 +356,18 @@ span.gw-field-value {
         </div>
       <?php endif; ?>
         <div class="gw-content-field">
-          <span class="gw-field-label">Feedback</span>
+          <span class="gw-field-label">Evaluation Remarks</span>
           <span class="gw-field-value"><?php echo $gw_user_info['VALIDATION_FEEDBACK']; ?></span>
         </div>
       </div>
       <div class="gw-action-card-action">
         <?php if(empty($gw_user_info['VALIDATION_STATUS'])){ ?>
-          <span>Inactive User can't be validated.</span>
+      	  <button class="button button-primary">Evaluate</button>
         <?php }else { ?>
-          <button class="button button-primary" id="gw_validate">Validate</button>
+          <button class="button button-primary" id="gw_validate">Evaluate</button>
         <?php } ?>
       </div>
-    </div>
+    </div> <!--- Validation Information --->
   </div>
 </div>
 
@@ -329,14 +412,19 @@ span.gw-field-value {
             do_action('gw_admin_notice', $data);
           }
            ?>
-          <form method='post' action='<?php echo $action_url; ?>' enctype='multipart/form-data'>
+          <form class="formValidate" method='post' action='<?php echo $action_url; ?>' enctype='multipart/form-data'>
               <input type="hidden" name="gw_request_validation_nonce" value="<?php echo $update_nonce; ?>"/>
               <input type="hidden" name="action" value="gw_request_validation"/>
-              <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['id'] ?>"/>
+              <input type="hidden" name="gw_student_uid" value="<?php echo $gw_user_info['id']; ?>"/>
+              <input type="hidden" name="gw_student_typ" value="<?php echo $user_type; ?>"/>
               <div class="gw-form-contact">
                 <div class="gw-form-input-group gw-form-address">
-                    <label for="gwEnrollmentOfficerFeedback">Your Feedback:</label>
-                    <textarea id="gwEnrollmentOfficerFeedback" name="gw_enrollment_officer_feedback" rows="5"><?php echo $gw_user_info['VALIDATION_FEEDBACK'] ?></textarea>
+                  <label for="gwEnrollmentOfficerFeedback">Evaluation Remarks:</label>
+                  <?php echo wp_editor( $gw_user_info['VALIDATION_FEEDBACK'], "gwEnrollmentOfficerFeedback", array(
+                    'textarea_name'=>'gw_enrollment_officer_feedback',
+                    'media_buttons' => false,
+                    'quicktags' => false
+                  ) ); ?>
                 </div>
                 <div class="gw-form-input-group">
                     <label for="GWUploadCOR">Certificate of Registration(COR):</label>
@@ -346,6 +434,7 @@ span.gw-field-value {
               <div class="gw-form-action">
                 <input type="submit" name="submit[approved]" id="submit" class="button button-primary" value="Approve Request" <?php echo (strtolower($gw_user_info['VALIDATION_STATUS'])=='approved')? 'disabled':'';?>>
                 <input type="submit" name="submit[denied]" id="submit" class="button button-error" value="Deny Request" <?php echo (strtolower($gw_user_info['VALIDATION_STATUS'])=='denied')? 'disabled':'';?>>
+                <input type="submit" name="submit[pending]" id="submit" class="button button-info" value="Update Remarks">
               </div>
           </form>
         </div>
