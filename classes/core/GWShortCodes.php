@@ -3,10 +3,21 @@
 
 class GWShortCodes
 {
+    private $user_data;
+    private $user_login;
+
     public function __construct()
     {
-        // Filters
 
+        $this->user_data = apply_filters('gw_session_user_validate', function($raw){
+          return $raw;
+        });
+
+        $this->user_login = apply_filters('gw_session_login_validate', function($raw){
+          return $raw;
+        });
+
+        // Filters
         add_filter('gw_breadcrumbs_progress', array( $this, 'breadcrumbs_progress'));
         add_filter('gw_selected_course', array( $this, 'selected_course'));
         add_filter('gw_current_user_login', array( $this, 'current_user_login'));
@@ -28,6 +39,46 @@ class GWShortCodes
         add_shortcode('gw_submitted_info', array( $this, 'submitted_info'));
         add_shortcode('gw_current_user', array( $this, 'current_user'));
         add_shortcode('gw_generated_data', array( $this, 'student_submitted_summary'));
+    	add_shortcode('gw_auth_page', array( $this, 'auth_pages'));
+
+    }
+
+
+	public function auth_pages($atts){
+    	$attr_data = shortcode_atts(array(
+            'page' => ''
+        ), $atts);
+    
+    	$e_html = "<div class=\"login-error\"><span>";
+    	$e_html_end = "</span></div>";
+    
+    	if(isset($_REQUEST['q'])){
+        	switch(sanitize_text_field( $_REQUEST['q'] )){
+            case '404':
+            	echo $e_html."No records found".$e_html_end;
+            break;
+            case '417':
+            	echo $e_html."All fields are reuired".$e_html_end;
+            break;
+            case '400':
+            	echo $e_html."Bad request".$e_html_end;
+            break;
+            }
+        }
+    
+    	switch($attr_data['page']){
+        case 'old':
+        	include WP_GW_ROOT . '/templ/gw-old-student-login.php';
+        break;        
+        case 'new':
+        	include WP_GW_ROOT . '/templ/gw-new-student-login.php';
+        break;        
+        case 'instant':
+        	include WP_GW_ROOT . '/templ/gw-instant-login.php'; 
+        break;
+        default:
+        	return "No page template found";
+        }
     }
 
     public function iframe($atts, $content=null)
@@ -103,33 +154,36 @@ class GWShortCodes
                 <div class="gw-course-wrapper">
                     <?php while ($the_query->have_posts()) : $the_query->the_post(); ?>
                         <?php
-                        $user_data = apply_filters('gw_current_user_login', null);
-        $course_minimum_percent = get_field('requirement_percentage');
+                        $course_minimum_percent = get_field('requirement_percentage');
 
-        if (get_field('gw_enable') &&
-                            get_field('levels') == $user_data->{'DEGREE_LEVEL'} &&
-                            $course_minimum_percent <= $user_data->{'PERCENT'}
-                        ):
+                        if (get_field('gw_enable') && get_field('levels') == strtolower($this->user_data["uobj"]["DEGREE_LEVEL"])):
 
+                            if($this->user_login["utyp"] == "new"){
+                              if($course_minimum_percent > $this->user_data["uobj"]["PERCENT"]){
+                                continue;
+                              }
+                            }
                             // Generate apply link
                             $get_slug_name = stripslashes(get_post_field('post_name', get_post()));
-        $remaining_slots = get_field('slots_available') - $this->_gw_course_availed_counts($get_slug_name);
-        $applied_course = do_shortcode("[gw_applied_course field='course_slug']");
-        $href = add_query_arg(array(
+                            $remaining_slots = get_field('slots_available') - $this->_gw_course_availed_counts($get_slug_name);
+                            $applied_course = do_shortcode("[gw_applied_course field='course_slug']");
+                            $href = add_query_arg(array(
                                 'page' => 'pass_course_apply',
                                 'course' => $get_slug_name,
                             ), GWUtility::_gw_current_page_url(null));
-        $course_count++; ?>
+                            $course_count++; ?>
                             <div class="gw-course-item gw-c-id-<?php the_ID(); ?> <?php  echo ($applied_course == $get_slug_name) ? 'gw-selected-course' : ''  ?>">
                                 <div class="gw-course-content">
                                     <div class="gw-c-title">
                                         <h6><?php the_title(); ?></h6>
                                     </div>
                                     <div class="gw-c-slots">
+                                        <?php if($this->user_login["utyp"] == "new"): ?>
                                         <h6><?php echo $remaining_slots; ?></h6>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="gw-c-action">
-                                        <?php if ($remaining_slots>0 || $applied_course == $get_slug_name) { ?>
+                                        <?php if ($remaining_slots>0 || $this->user_login["utyp"] == "old" || $applied_course == $get_slug_name) { ?>
                                             <a href="<?php echo $href; ?>" class="gw-c-action-link gw-c-action-btn" >
                                                 <?php echo (!$applied_course) ? 'Apply Now' : (($applied_course == $get_slug_name) ? 'View Status' : 'View Course') ;  ?>
                                             </a>
@@ -199,13 +253,42 @@ class GWShortCodes
             case 'title': return $course_data['title'];
             case 'college': return $course_data['college'];
             case 'slots_available':
+                if($this->user_data["utyp"] == "old"){
+                  return null;
+                }
                 return sprintf('%s / %s', ($course_data['slots_available'] - $this->_gw_course_availed_counts($course_data['slug'])), $course_data['slots_available']);
-            case 'slots_number_available': return ($course_data['slots_available'] - $this->_gw_course_availed_counts($course_data['slug']));
+            case 'slots_number_available':
+                if($this->user_data["utyp"] == "old"){
+                  return null;
+                }
+                return ($course_data['slots_available'] - $this->_gw_course_availed_counts($course_data['slug']));
             case 'slots_number_capacity':
+                if($this->user_data["utyp"] == "old"){
+                  return null;
+                }
                 return $course_data['slots_available'];
             case 'slots_number_availed':
+                if($this->user_data["utyp"] == "old"){
+                  return null;
+                }
                 return $this->_gw_course_availed_counts($course_data['slug']);
-            case 'requirement_percentage': return $course_data['requirement_percentage'];
+            case 'requirement_percentage':
+                if($this->user_data["utyp"] == "old"){
+                  return null;
+                }
+                return $course_data['requirement_percentage'];
+        	case 'requirements_list':
+        		$req_list = apply_filters('gw_get_course_meta', $course_data['slug'], 'get_field', 'requirements');
+        		
+        		if(!empty($req_list)){
+                	echo "<style>.gw-repeater-item h5 {margin-bottom: 0;margin-top: 10px;}</style>";
+                	$lists_html = "<div class=\"gw-repeater-lists\">";
+                	forEach($req_list as $item){
+                    	$lists_html .= sprintf("<div class=\"gw-repeater-item\"><h5>%s</h5><div class=\"gw-repeater-desc\">%s</div></div>", $item["label"], $item["description"]);
+                    }
+                	return $lists_html."</div>";
+                }
+                return "No requirements yet.";
             default:
                 return "No field selected";
         }
@@ -217,8 +300,7 @@ class GWShortCodes
             'field' => ''
         ), $atts);
 
-        $user_data = apply_filters('gw_current_user_login', null);
-        return $this->_gw_current_applied_course($atts['field'], $user_data->{'ID'});
+        return $this->_gw_current_applied_course($atts['field'], $this->user_login["uid"]);
     }
 
     public function submitted_info($atts)
@@ -227,72 +309,97 @@ class GWShortCodes
             'field' => ''
         ), $atts);
 
-        $user_data = apply_filters('gw_current_user_login', null);
+        $user_id = $this->user_login["uid"];
 
-        if (empty($user_data->{'ID'})) {
+        if (empty($user_id)) {
             return false;
+        }
+
+        $data_source = new GWDataTable();
+
+        if($this->user_data["utyp"] == "old"){
+          $result = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+        }else{
+          $result = $data_source->getExamResultData($user_id);
+        }
+
+        if(empty($result['VALIDATION_REQUIREMENTS'])){
+          return;
         }
 
         switch ($atts['field']) {
           case 'requirements':
-            $data_source = new GWDataTable();
-            $result = $data_source->getExamResultData($user_data->{'ID'});
-
             $field = json_decode($result['VALIDATION_REQUIREMENTS']);
             $styles = "<style>ul.gw-submitted-files {padding: 10px 30px;}ul.gw-submitted-files a {color: #2196F3;}ul.gw-submitted-files li {padding: 3px;}</style>";
             echo $styles;
 
             $file_lists = "<ul class=\"gw-submitted-files\">";
             foreach ($field as $key => $value) {
-                $file_lists.="<li><a href=\"" . GWUtility::_gw_generate_file_url($user_data->{'ID'}, $value) . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
+                $file_lists.="<li><a href=\"" . GWUtility::_gw_generate_file_url($user_id, $value) . "\" target=\"_blank\">" . basename($value) .  "</a></li>";
             }
             $file_lists.= "</ul>";
             return $file_lists;
           case 'course_title':
-            $data_source = new GWDataTable();
-            $result = $data_source->getExamResultData($user_data->{'ID'});
             $field_data = apply_filters('gw_get_course_meta_id', $result['REQUESTED_COURSE_ID'], 'get_the_title', null);
             return $field_data;
           case 'college_title':
-            $data_source = new GWDataTable();
-            $result = $data_source->getExamResultData($user_data->{'ID'});
             $field_data = apply_filters('gw_get_course_meta_id', $result['REQUESTED_COURSE_ID'], 'get_the_category', null)[0]->cat_name;
             return $field_data;
           case 'status':
-            $data_source = new GWDataTable();
-            $result = $data_source->getExamResultData($user_data->{'ID'});
             return $result['VALIDATION_STATUS'];
           case 'tc':
             $data_table = new GWDataTable();
-            $formatted_tc = $data_table->getTC($user_data->{'ID'});
+            $formatted_tc = $data_table->getTC($user_id, $this->user_data["utyp"]);
             return $formatted_tc['REQUESTED_TRANSACTION_ID'];
+          case 'officer':
+            return GWUtility::_gw_get_user_display_name($result['VALIDATION_OFFICER']);
           case 'feedback':
-            $data_source = new GWDataTable();
-            $result = $data_source->getExamResultData($user_data->{'ID'});
             return $result['VALIDATION_FEEDBACK'];
           default:
-            return $this->_gw_submitted_data_query($atts['field'], $user_data->{'EXAMINEE_NO'});
-        }
-    }
+            return $this->_gw_submitted_data_query($atts['field'], $this->user_login["uobj"]["EXAMINEE_NO"]);
+      }
+  }
 
-    public function current_user($atts)
-    {
-        shortcode_atts(array(
-            'field' => ''
-        ), $atts);
+  public function current_user($atts)
+  {
+      shortcode_atts(array(
+          'field' => ''
+      ), $atts);
 
-        $user_data = apply_filters('gw_current_user_login', null);
+      $user_id = $this->user_login["uid"];
 
-        switch ($atts['field']) {
-            case 'exam_number': return $user_data->{'EXAMINEE_NO'};
-            case 'score_in_percent': return $user_data->{'PERCENT'};
-            case 'full_name': return $user_data->{'FULL_NAME'};
-            case 'is_success': return $user_data->{'EXAM_STATUS'};
+      switch ($atts['field']) {
+            case 'exam_number':
+              if($this->user_data["utyp"] == "old"){
+                return null;
+              }
+              return $this->user_login["uobj"]["EXAMINEE_NO"];
+            case 'score_in_percent':
+              if($this->user_data["utyp"] == "old"){
+                return null;
+              }
+              return $this->user_data["uobj"]["PERCENT"];
+      		case 'score_in_total':
+              if($this->user_data["utyp"] == "old"){
+                return null;
+              }
+              return $this->user_data["uobj"]["TOTAL"];
+            case 'full_name': return $this->user_data["uobj"]["FULL_NAME"];
+            case 'is_success': return $this->user_data["uobj"]["EXAM_STATUS"];
+            case 'type':
+                return $this->user_data["utyp"];
+            case 'id_number':
+              return $this->user_data["uobj"]["ID_NUMBER"];
             case 'email_address':
             case 'contact_number':
             case 'address':
                 $data_source = new GWDataTable();
-                $result = $data_source->getExamResultData($user_data->{'ID'});
+
+                if($this->user_data["utyp"] == "old"){
+                  $result = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+                }else{
+                  $result = $data_source->getExamResultData($user_id);
+                }
 
                 $field = $result[strtoupper($atts['field'])];
 
@@ -303,13 +410,21 @@ class GWShortCodes
             case 'full_data':
                 $data_source = new GWDataTable();
 
-                $result = $data_source->getAdmissionInfo($user_data->{'ID'});
+                if($this->user_data["utyp"] == "old"){
+                  $result = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+                }else{
+                  $result = $data_source->getAdmissionInfo($user_id);
+                }
 
                 if (count($result)<1) {
                     echo "No student information could be found.";
                     break;
                 } else {
-                    $gw_user_info = $result[0];
+                  if($this->user_data["utyp"] == "old"){
+                      $gw_user_info = $result;
+                  }else{
+                      $gw_user_info = $result[0];
+                  }
                 }
 
                 include WP_GW_ROOT . '/templ/gw-new-student-update-information.php';
@@ -325,23 +440,33 @@ class GWShortCodes
           'field' => ''
       ), $atts);
 
-        $user_data = apply_filters('gw_current_user_login', null);
+        $user_id = $this->user_login["uid"];
 
-        $exam_results = new GWDataTable();
+        $data_source = new GWDataTable();
 
-        if(empty($user_data->{'ID'})){
+        if(empty($user_id)){
           return 'Data Template';
         }
-        $gw_user_info = $exam_results->getExamResultData($user_data->{'ID'});
+
+        if($this->user_data["utyp"] == "old"){
+          $gw_user_info = GWUtility::gw_object_to_array($data_source->getOldStudentData($user_id));
+        }else{
+          $gw_user_info = $data_source->getExamResultData($user_id);
+        }
 
         $field_format = "<span class=\"gw-clipboard\">%s</span>";
 
         switch ($atts['field']) {
         case 'full_name':
-          return $user_data->{'FULL_NAME'};
+          return $this->user_data["uobj"]["FULL_NAME"];
         case 'selected_course':
           if (!empty($gw_user_info['REQUESTED_COURSE_ID'])) {
               return apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'], 'get_the_title', null);
+          }
+          return 'No Selected Course';
+        case 'selected_college':
+          if (!empty($gw_user_info['REQUESTED_COURSE_ID'])) {
+              return apply_filters('gw_get_course_meta_id', $gw_user_info['REQUESTED_COURSE_ID'], 'get_the_category', null)[0]->cat_name;
           }
           return 'No Selected Course';
         case 'sias-username':
@@ -380,7 +505,7 @@ class GWShortCodes
           return date('M d, Y', $date);
         case 'cor':
           $cor_file_name = "cor.pdf";
-          return GWUtility::_gw_generate_file_url($user_data->{'ID'}, $cor_file_name);
+          return GWUtility::_gw_generate_file_url($user_id, $cor_file_name);
         default:
           return 'Field not found';
       }
@@ -545,34 +670,41 @@ class GWShortCodes
         }
     }
 
-    public function validate_submitted_information($examinee_number = null, $uid=null)
+    public function validate_submitted_information($ud_number = null, $uid=null)
     {
-        // Get current user
-        $user_data = apply_filters('gw_current_user_login', null);
-
-        if (!$examinee_number && !$uid) {
-            $examinee_number = $user_data->{'EXAMINEE_NO'};
-            $uid = $user_data->{'ID'};
-        }
-
         $data_source = new GWDataTable();
+        $results = 0;
 
-        // Query Entries
-        $results = $data_source->isCourseApplicationExist($uid, $examinee_number);
+        if($this->user_data["utyp"] == "new"){
+          if (!$ud_number && !$uid) {
+              $ud_number = $this->user_login["uobj"]["EXAMINEE_NO"];
+              $uid = $this->user_login["uid"];
+          }
+          // Query Entries
+          $results = $data_source->isCourseApplicationExist($uid, $ud_number);
+        }else if($this->user_data["utyp"] == "old"){
+          if (!$ud_number && !$uid) {
+              $ud_number = $this->user_login["uobj"]["ID_NUMBER"];
+              $uid = $this->user_login["uid"];
+          }
+          // Query Entries
+          $results = $data_source->isCourseApplicationExistOldStudent($uid, $ud_number);
+        }
 
         return $results >= 1;
     }
 
     public function validate_request_status($is_success_redirect=true, $is_fail_redirect=false, $is_success_redirect_pending=true)
     {
-        // Get current user
-        $user_data = apply_filters('gw_current_user_login', null);
-
-        $examinee_number = $user_data->{'EXAMINEE_NO'};
-        $uid = $user_data->{'ID'};
+        $uid = $this->user_login["uid"];
 
         $data_source = new GWDataTable();
-        $result = $data_source->getExamResultData($user_data->{'ID'});
+
+        if($this->user_data["utyp"] == "old"){
+          $result = GWUtility::gw_object_to_array($data_source->getOldStudentData($uid));
+        }else{
+          $result = $data_source->getExamResultData($uid);
+        }
 
         $status = $result['VALIDATION_STATUS'];
         $course_id = $result['REQUESTED_COURSE_ID'];

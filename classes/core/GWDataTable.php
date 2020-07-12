@@ -22,6 +22,10 @@ class GWDataTable
         $this->logger_table_name = $wpdb->prefix. 'gw_logger';
         $this->exam_results_table_name = $wpdb->prefix . 'gw_exam_results';
         $this->admission_info_table_name = $wpdb->prefix . 'gw_admission_info';
+
+        $this->new_student_table_name = $wpdb->prefix . 'gw_new_student'; // Replacement for Exam results
+        $this->old_student_table_name = $wpdb->prefix . 'gw_old_student';
+
         $this->charset_collate = $wpdb->get_charset_collate();
     }
 
@@ -32,6 +36,7 @@ class GWDataTable
     {
         $this->loggerInstall();
         $this->examResultInstall();
+        $this->oldStudentInstall();
         $this->admissionInformationInstall();
     }
 
@@ -42,6 +47,7 @@ class GWDataTable
     {
         $this->loggerUninstall();
         $this->examResultUninstall();
+        $this->oldStudentUninstall();
         $this->admissionInformationUninstall();
     }
 
@@ -297,6 +303,114 @@ class GWDataTable
         delete_option('gw_admission_info_dt_version');
     }
 
+    /**
+     * examResultInstall
+     */
+    protected function oldStudentInstall()
+    {
+        $installed_ver = get_option(WP_GW_OPTION_PREFIX . "old_student_dt_version");
+
+        if ($installed_ver != WP_GW_TABLE_NEW_STUDENT_VERSION) {
+            $this->oldStudentUpdate();
+        } else {
+            $sql = "CREATE TABLE $this->old_student_table_name (
+                    id mediumint(11) NOT NULL AUTO_INCREMENT,
+                    INSERTION_TIME datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+                    ID_NUMBER varchar(10) NULL,
+                    EMAIL_ADDRESS varchar(80) NULL,
+                    LAST_NAME varchar(80) NULL,
+                    FIRST_NAME varchar(80) NULL,
+                    MIDDLE_NAME varchar(80) NULL,
+                    NAME_SUFFIX varchar(80) NULL,
+                    SEX varchar(80) NULL,
+                    BIRTHDATE varchar(80) NULL,
+                    CONTACT_NUMBER varchar(80) NULL,
+                    ADDRESS varchar(100) NULL,
+                    CITIZENSHIP varchar(80) NULL,
+                    CIVIL_STATUS varchar(80) NULL,
+                    PROVINCE varchar(80) NULL,
+                    ZIP_CODE varchar(80) NULL,
+                    TCM varchar(80) NULL,
+                    BRGY varchar(80) NULL,
+                    STREET varchar(100) NULL,
+                    STATUS varchar(80) NULL,
+                    DEGREE_LEVEL varchar(80) NOT NULL,
+                    CURRENT_COURSE_ID varchar(80) NULL,
+                    CURRENT_COURSE_COLLEGE varchar(80) NULL,
+                    NEW_COURSE_ID varchar(80) NULL,
+                    NEW_COURSE_COLLEGE varchar(80) NULL,
+                    REQUESTED_COURSE_ID varchar(80) NULL,
+                    REQUESTED_COURSE_COLLEGE varchar(80) NULL,
+                    REQUESTED_TRANSACTION_ID varchar(80) NULL,
+                    VALIDATION_REQUIREMENTS varchar(800) NULL,
+                    VALIDATION_COR varchar(800) NULL,
+                    VALIDATION_STATUS varchar(80) NULL,
+                    VALIDATION_OFFICER varchar(80) NULL,
+                    VALIDATION_FEEDBACK varchar(300) NULL,
+                    CONFIRMATION_BOOL int DEFAULT 0 NOT NULL,
+                    TEMP_PASSWORD varchar(10) NULL,
+                    PRIMARY KEY (id)
+                ) $this->charset_collate;";
+
+            require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+            dbDelta($sql);
+            add_option(WP_GW_OPTION_PREFIX . "old_student_dt_version", WP_GW_TABLE_NEW_STUDENT_VERSION);
+        }
+    }
+
+    /**
+     * examResultUpdate
+     */
+    protected function oldStudentUpdate()
+    {
+      $sql = "CREATE TABLE $this->old_student_table_name (
+              id mediumint(11) NOT NULL AUTO_INCREMENT,
+              INSERTION_TIME datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+              ID_NUMBER varchar(10) NULL,
+              EMAIL_ADDRESS varchar(80) NULL,
+              LAST_NAME varchar(80) NULL,
+              FIRST_NAME varchar(80) NULL,
+              MIDDLE_NAME varchar(80) NULL,
+              NAME_SUFFIX varchar(80) NULL,
+              SEX varchar(80) NULL,
+              BIRTHDATE varchar(80) NULL,
+              CONTACT_NUMBER varchar(80) NULL,
+              ADDRESS varchar(100) NULL,
+              DEGREE_LEVEL varchar(80) NOT NULL,
+              CURRENT_COURSE_ID varchar(80) NULL,
+              CURRENT_COURSE_COLLEGE varchar(80) NULL,
+              NEW_COURSE_ID varchar(80) NULL,
+              NEW_COURSE_COLLEGE varchar(80) NULL,
+              REQUESTED_COURSE_ID varchar(80) NULL,
+              REQUESTED_COURSE_COLLEGE varchar(80) NULL,
+              REQUESTED_TRANSACTION_ID varchar(80) NULL,
+              VALIDATION_REQUIREMENTS varchar(800) NULL,
+              VALIDATION_COR varchar(800) NULL,
+              VALIDATION_STATUS varchar(80) NULL,
+              VALIDATION_OFFICER varchar(80) NULL,
+              VALIDATION_FEEDBACK varchar(300) NULL,
+              CONFIRMATION_BOOL int DEFAULT 0 NOT NULL,
+              TEMP_PASSWORD varchar(10) NULL,
+              PRIMARY KEY (id)
+          ) $this->charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+
+        update_option(WP_GW_OPTION_PREFIX . "old_student_dt_version", WP_GW_TABLE_NEW_STUDENT_VERSION);
+    }
+
+    /**
+     *  Drop exam-result data table
+     */
+    protected function oldStudenttUninstall()
+    {
+        global $wpdb;
+
+        $wpdb->query("DROP TABLE IF EXISTS  $this->old_student_table_name");
+        delete_option('old_student_dt_version');
+    }
+
 
     /**
      * Returns action method status
@@ -392,6 +506,15 @@ class GWDataTable
         global $wpdb;
 
         $action = $wpdb->delete($this->logger_table_name, array( 'type' => $type ), array( '%d' ));
+
+        return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
+    public function truncateOldStudent()
+    {
+        global $wpdb;
+
+        $action = $wpdb->query("TRUNCATE TABLE `{$this->old_student_table_name}`");
 
         return $this->getActionStatus(__FUNCTION__, $action);
     }
@@ -537,7 +660,7 @@ class GWDataTable
     public function insertExamResult($entry, $degree_level = 'college')
     {
         global $wpdb;
-
+		
         $action = $wpdb->insert(
             $this->exam_results_table_name,
             array(
@@ -556,6 +679,37 @@ class GWDataTable
                 'TOTAL' => $entry['TOTAL'],
                 'PERCENT' => $entry['PERCENT'],
                 'EXAM_STATUS' => $entry['EXAM_STATUS'],
+            	'DEGREE_LEVEL' => $degree_level,
+            )
+        );
+        return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
+    /**
+     * insertOldStudent
+     *
+     * @param $entry
+     * @return array|string[]
+     */
+    public function insertOldStudent($entry)
+    {
+        global $wpdb;
+
+        $action = $wpdb->insert(
+            $this->old_student_table_name,
+            array(
+                'INSERTION_TIME' => current_time('mysql'),
+                'ID_NUMBER' => $entry['ID_NUMBER'],
+                'EMAIL_ADDRESS' => $entry['EMAIL_ADDRESS'],
+                'LAST_NAME' => $entry['LAST_NAME'],
+                'FIRST_NAME' => $entry['FIRST_NAME'],
+                'MIDDLE_NAME' => $entry['MIDDLE_NAME'],
+                'NAME_SUFFIX' => $entry['NAME_SUFFIX'],
+                'SEX' => $entry['SEX'],
+                'BIRTHDATE' => $entry['BIRTHDATE'],
+                'CONTACT_NUMBER' => $entry['CONTACT_NUMBER'],
+                'DEGREE_LEVEL' => $entry['DEGREE_LEVEL'],
+                'CURRENT_COURSE_ID' => $entry['COURSE'],
             )
         );
         return $this->getActionStatus(__FUNCTION__, $action);
@@ -598,6 +752,37 @@ class GWDataTable
             )
         );
         return $this->getActionStatus(__FUNCTION__, $action);
+    }
+
+    public function updateOldStudentInformation($unique_id, $data_entry)
+    {
+        global $wpdb;
+
+        $action = $wpdb-> update(
+            $this->old_student_table_name,
+            array(
+            'EMAIL_ADDRESS' => $data_entry['EMAIL_ADDRESS'],
+            'LAST_NAME' => $data_entry['LAST_NAME'],
+            'FIRST_NAME' => $data_entry['FIRST_NAME'],
+            'MIDDLE_NAME' => $data_entry['MIDDLE_NAME'],
+            'NAME_SUFFIX' => $data_entry['NAME_SUFFIX'],
+            'SEX' => $data_entry['SEX'],
+            'BIRTHDATE' => $data_entry['BIRTHDATE'],
+            'CONTACT_NUMBER' => $data_entry['CONTACT_NUMBER'],
+            'ADDRESS' => $data_entry['ADDRESS'],
+            'CITIZENSHIP' => $data_entry['CITIZENSHIP'],
+            'CIVIL_STATUS' => $data_entry['CIVIL_STATUS'],
+            'PROVINCE' => $data_entry['PROVINCE'],
+            'ZIP_CODE' => $data_entry['ZIP_CODE'],
+            'TCM' => $data_entry['TCM'],
+            'BRGY' => $data_entry['BRGY'],
+            'STREET' => $data_entry['STREET']
+          ),
+            array( 'id' => $unique_id ),
+            array( '%s', '%s' )
+        );
+
+        return $action;
     }
 
     public function updateExamStudentInformation($unique_id, $data_entry)
@@ -668,6 +853,60 @@ class GWDataTable
         return $this->getActionStatus(__FUNCTION__, $action);
     }
 
+    public function genIDNumberNewStudents()
+    {
+      global $wpdb;
+
+      $query = "SELECT id from {$this->exam_results_table_name}
+      where ID_NUMBER IS NULL;";
+
+      $results = $wpdb->get_results($query, ARRAY_A);
+
+      foreach ($results as $unique_id) {
+        $this->generateID($unique_id["id"]);
+      }
+    }
+
+    public function updateCurrentCourseCollege($unique_id, $college_slug)
+    {
+        global $wpdb;
+        $action = $wpdb-> update(
+           $this->old_student_table_name,
+           array( 'CURRENT_COURSE_COLLEGE' => $college_slug ),
+           array( 'id' => $unique_id),
+           array( '%s', '%s' )
+        );
+        print_r($action);
+        print_r("\n{$unique_id} - {$college_slug}\n");
+
+    }
+
+    public function syncCourseCatOldStudents()
+    {
+      global $wpdb;
+
+      $query = "SELECT id from {$this->old_student_table_name}
+      where CURRENT_COURSE_ID NOT LIKE '-'
+      AND CURRENT_COURSE_COLLEGE IS NULL;";
+
+      $results = $wpdb->get_results($query, ARRAY_A);
+
+      foreach ($results as $unique_id) {
+        $this->syncCourseCategories($unique_id["id"]);
+      }
+    }
+
+    public function syncCourseCategories($user_id)
+    {
+      $result = $this->getOldStudentData($user_id);
+      if(!empty($result)){
+        $record = apply_filters( 'gw_course_get_by_shortname', $result->{'CURRENT_COURSE_ID'}, function($raw){ return $raw; } );
+        if(empty($result->{'CURRENT_COURSE_COLLEGE'}) && !empty($record["slug"])){
+          $this->updateCurrentCourseCollege($result->{'id'}, $record["slug"]);
+        }
+      }
+    }
+
     /**
      * Get user data
      *
@@ -681,6 +920,19 @@ class GWDataTable
         return $wpdb->get_row("SELECT * FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
     }
 
+    /**
+     * Get user data
+     *
+     * @param $id_number
+     * @return mixed
+     */
+    public function getOldStudentData($unique_id)
+    {
+        global $wpdb;
+
+        return $wpdb->get_row("SELECT * FROM {$this->old_student_table_name} WHERE id LIKE BINARY '{$unique_id}'", OBJECT);
+    }
+
     public function getConfirmation($unique_id)
     {
         global $wpdb;
@@ -688,17 +940,59 @@ class GWDataTable
         return $wpdb->get_row("SELECT CONFIRMATION_BOOL FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
     }
 
-    public function setConfirmation($unique_id, $is_confirmation=false)
+    public function setConfirmation($unique_id, $is_confirmation=false, $utype)
     {
         global $wpdb;
 
+        $table_name = "";
+        if($utype == "new"){
+          $table_name = $this->exam_results_table_name;
+        }elseif ($utype == "old") {
+          $table_name = $this->old_student_table_name;
+        }
+
+        if(empty($table_name)){
+          return;
+        }
+
         $action = $wpdb-> update(
-            $this->exam_results_table_name,
+            $table_name,
             array( 'CONFIRMATION_BOOL' => $is_confirmation ),
             array( 'id' => $unique_id ),
             array( '%s', '%s' )
         );
         return $action;
+    }
+
+    public function generateTempPassword($unique_id, $utype)
+    {
+      global $wpdb;
+
+      $table_name = "";
+      if($utype == "new"){
+        $table_name = $this->exam_results_table_name;
+      }elseif ($utype == "old") {
+        $table_name = $this->old_student_table_name;
+      }
+
+      if(empty($table_name)){
+        return;
+      }
+
+      if ($this->getConfirmation($unique_id)['CONFIRMATION_BOOL'] == 1) {
+          return false;
+      }
+      $temp_password = wp_generate_password(8, false, false);
+
+      $action = $wpdb-> update(
+          $table_name,
+          array(
+          'TEMP_PASSWORD' => $temp_password
+        ),
+          array( 'id' => $unique_id ),
+          array( '%s', '%s' )
+      );
+      return $action;
     }
 
     public function generateID($unique_id)
@@ -731,9 +1025,23 @@ class GWDataTable
         return $action;
     }
 
-    public function generateTC($unique_id, $course_id)
+    public function generateTC($unique_id, $course_id, $utype)
     {
         global $wpdb;
+
+        $table_name = "";
+        $utype_prefix = "";
+        if($utype == "new"){
+          $table_name = $this->exam_results_table_name;
+          $utype_prefix = "N";
+        }elseif ($utype == "old") {
+          $table_name = $this->old_student_table_name;
+          $utype_prefix = "O";
+        }
+
+        if(empty($table_name)){
+          return;
+        }
 
         $year = get_option('gw_settings_semester_year'); // Semester Year
       $semester = get_option('gw_settings_semester'); // Semester
@@ -743,10 +1051,10 @@ class GWDataTable
       $formatted_course_id = str_pad($course_id, 3, "0", STR_PAD_LEFT); // course_id
       $formatted_year = substr($year, 2);
 
-        $tc_id = sprintf("TC%s%s%s%s%s", $formatted_year, $campus, $semester, $formatted_course_id, $formatted_unique_id);
+        $tc_id = sprintf("TC%s%s%s%s%s%s", $utype_prefix, $formatted_year, $campus, $semester, $formatted_course_id, $formatted_unique_id);
 
         $action = $wpdb-> update(
-            $this->exam_results_table_name,
+            $table_name,
             array(
             'REQUESTED_TRANSACTION_ID' => $tc_id
           ),
@@ -756,25 +1064,62 @@ class GWDataTable
         return $action;
     }
 
-    public function getLoginByTC($tc_id)
+    public function getLoginByTC($tc_id, $utype)
     {
         global $wpdb;
 
-        return $wpdb->get_row("SELECT EXAMINEE_NO, EXAMINATION_DATE, EXAMINATION_TIME, BIRTHDATE FROM {$this->exam_results_table_name} WHERE REQUESTED_TRANSACTION_ID LIKE BINARY '{$tc_id}'", ARRAY_A);
+        $table_name = "";
+        if($utype == "new"){
+          $table_name = $this->exam_results_table_name;
+        }elseif ($utype == "old") {
+          $table_name = $this->old_student_table_name;
+        }
+
+        if(empty($table_name)){
+          return;
+        }
+
+        return $wpdb->get_row("SELECT * FROM {$table_name} WHERE REQUESTED_TRANSACTION_ID LIKE BINARY '{$tc_id}'", ARRAY_A);
     }
 
-    public function getTC($unique_id)
+    public function getTC($unique_id, $utype)
     {
         global $wpdb;
 
-        return $wpdb->get_row("SELECT REQUESTED_TRANSACTION_ID FROM {$this->exam_results_table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
+        $table_name = "";
+        if($utype == "new"){
+          $table_name = $this->exam_results_table_name;
+        }elseif ($utype == "old") {
+          $table_name = $this->old_student_table_name;
+        }
+
+        if(empty($table_name)){
+          return;
+        }
+
+        return $wpdb->get_row("SELECT REQUESTED_TRANSACTION_ID FROM {$table_name} WHERE id LIKE BINARY '{$unique_id}'", ARRAY_A);
     }
 
 
-    public function get_requested_course_college($unique_id)
+    public function get_requested_course_college($unique_id, $utype)
     {
         global $wpdb;
-        $query = "select REQUESTED_COURSE_COLLEGE from {$this->exam_results_table_name} where id={$unique_id};";
+
+        $table_name = "";
+        if($utype == "new"){
+          $table_name = $this->exam_results_table_name;
+        }elseif ($utype == "old") {
+          $table_name = $this->old_student_table_name;
+        }
+
+        if(empty($table_name)){
+          return;
+        }
+        $query = "select REQUESTED_COURSE_COLLEGE from {$table_name} where id={$unique_id};";
+    	
+    	if(empty($wpdb->get_results($query, ARRAY_A)[0]['REQUESTED_COURSE_COLLEGE'])){
+        	return;
+        }
         return $wpdb->get_results($query, ARRAY_A)[0]['REQUESTED_COURSE_COLLEGE'];
     }
 
@@ -786,7 +1131,7 @@ class GWDataTable
     public function isExamResultDataExist($data_entry)
     {
         global $wpdb;
-        $cntSQL = "SELECT count(*) as count FROM {$this->exam_results_table_name} where
+        $query = "SELECT count(*) as count FROM {$this->exam_results_table_name} where
               EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
               EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
               EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
@@ -795,7 +1140,24 @@ class GWDataTable
               FIRST_NAME='{$data_entry["FIRST_NAME"]}' AND
               DEGREE_LEVEL='{$data_entry["DEGREE_LEVEL"]}'";
 
-        return $wpdb->get_results($cntSQL, OBJECT);
+        return $wpdb->get_results($query, OBJECT);
+    }
+
+    /**
+     * Check if old already exist
+     * @param $data_entry
+     * @return bool
+     */
+    public function isOldStudentDataExist($data_entry)
+    {
+        global $wpdb;
+
+        $last_name_char = mb_substr($data_entry["LAST_NAME"],0, 2);
+        $query = "SELECT count(*) as count, id, ID_NUMBER, LAST_NAME FROM {$this->old_student_table_name} where
+              ID_NUMBER='{$data_entry["ID_NUMBER"]}' AND
+              LAST_NAME like '{$last_name_char}%'";
+
+        return $wpdb->get_results($query, OBJECT);
     }
 
     /**
@@ -806,13 +1168,13 @@ class GWDataTable
     public function isAdmissionInfoDataExist($data_entry)
     {
         global $wpdb;
-        $cntSQL = "SELECT count(*) as count FROM {$this->admission_info_table_name} where
+        $query = "SELECT count(*) as count FROM {$this->admission_info_table_name} where
               EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
               EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
               EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
               BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
 
-        return $wpdb->get_results($cntSQL, OBJECT);
+        return $wpdb->get_results($query, OBJECT);
     }
 
     /**
@@ -823,13 +1185,73 @@ class GWDataTable
     public function isCourseApplicationExist($id, $examinee_number)
     {
         global $wpdb;
-        $cntSQL = "SELECT count(*) AS is_exist
+        $query = "SELECT count(*) AS is_exist
         FROM {$this->exam_results_table_name}
          WHERE ID = '{$id}' AND
          EXAMINEE_NO = '{$examinee_number}' AND
          VALIDATION_STATUS IN ('pending', 'approved') AND
          REQUESTED_COURSE_ID <> ''";
 
-        return $wpdb->get_results($cntSQL, OBJECT)[0]->{'is_exist'};
+        return $wpdb->get_results($query, OBJECT)[0]->{'is_exist'};
+    }
+
+    /**
+     * Check if course application already exist
+     * @param $data_entry
+     * @return bool
+     */
+    public function isCourseApplicationExistOldStudent($id, $id_number)
+    {
+        global $wpdb;
+        $query = "SELECT count(*) AS is_exist
+        FROM {$this->old_student_table_name}
+         WHERE ID = '{$id}' AND
+         ID_NUMBER = '{$id_number}' AND
+         VALIDATION_STATUS IN ('pending', 'approved') AND
+         REQUESTED_COURSE_ID <> ''";
+
+        return $wpdb->get_results($query, OBJECT)[0]->{'is_exist'};
+    }
+
+
+
+    // Session Auth Methods
+
+    public function isNewStudentExists($raw)
+    {
+      global $wpdb;
+
+      if($raw['utyp']=='new'){
+        return false;
+      }
+
+      $data_entry = $raw['uobj'];
+
+      $query = "SELECT count(*) as count FROM {$this->exam_results_table_name} where
+            id={$raw['uid']} AND
+            EXAMINEE_NO='{$data_entry["EXAMINEE_NO"]}' AND
+            EXAMINATION_DATE='{$data_entry["EXAMINATION_DATE"]}' AND
+            EXAMINATION_TIME='{$data_entry["EXAMINATION_TIME"]}' AND
+            BIRTHDATE='{$data_entry["BIRTHDATE"]}'";
+
+      return $wpdb->get_results($query, OBJECT);
+    }
+
+    public function isOldStudentExist($raw){
+      global $wpdb;
+
+      if($raw['utyp']=='old'){
+        return false;
+      }
+
+      $data_entry = $raw['uobj'];
+
+      $last_name_char = mb_substr($data_entry["LAST_NAME"],0, 2);
+      $query = "SELECT count(*) as count FROM {$this->old_student_table_name} where
+            id={$raw['uid']} AND
+            ID_NUMBER='{$data_entry["ID_NUMBER"]}' AND
+            LAST_NAME like '{$last_name_char}%'";
+
+      return $wpdb->get_results($query, OBJECT);
     }
 }

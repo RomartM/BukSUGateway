@@ -46,10 +46,12 @@ class GWFrontEnd
                         apply_filters('gw_template_prepare', array( $this, 'gw_login_old_ui'), 1);
                         break;
                     case 'logout':
-                        apply_filters('gw_session_reset', '');
+                        do_action( 'gw_session_login_set_reset' );
+                        do_action( 'gw_session_user_set_reset' );
                         GWUtility::_gw_redirect('login');
                         break;
                     case 'pass_process':
+                        do_action('gw_validate_login', false, true);
                         do_action('gw_pass_process');
                         break;
                     case 'pass_success':
@@ -170,14 +172,10 @@ class GWFrontEnd
         get_footer();
     }
 
-
-
     public function render_ui(){
         do_action('gw_get_request');
         do_action('gw_template_render');
     }
-
-
 
     public function frontend_template( $page_template )
     {
@@ -187,28 +185,22 @@ class GWFrontEnd
         return $page_template;
     }
 
-
-
-
     public function pass_process()
     {
         print_r("Processing...");
-        if (apply_filters('gw_session_validate', '')) {
-            $user_meta = apply_filters('gw_user_set', null);
-            switch ($user_meta->{'STUDENT_TYPE'}) {
-                case 'new':
-                    do_action('gw_validate_exam_status', true);
-                    break;
-                case 'old':
-                    // code...
-                    break;
-                default:
-                    // Unknown user type; Force reset Auth cookies
-                    apply_filters('gw_session_reset', null);
-                    apply_filters('gw_session_validate', null);
-                    break;
-            }
-        }
+        apply_filters('gw_session_login_validate', function($raw){
+          switch ($raw["utyp"]) {
+            case 'new':
+              do_action('gw_validate_new_student_exam_status', true);
+              break;
+            case 'old':
+              do_action( 'gw_validate_old_student_course_preference', true );
+              break;
+            default:
+              do_action('gw_session_reset');
+              break;
+          }
+        });
     }
 
     public function user_set($object_data=null)
@@ -231,19 +223,19 @@ class GWFrontEnd
     // Login UI old Student
     public function gw_login_old_ui()
     {
-        include WP_GW_ROOT . '/templ/gw-old-student-login.php';
+    	echo do_shortcode('[elementor-template id="820"]');
     }
 
     // Login UI new Student
     public function gw_login_new_ui()
     {
-        include WP_GW_ROOT . '/templ/gw-new-student-login.php';
+    	echo do_shortcode('[elementor-template id="817"]');
     }
 
     // Login Intant via Transaction Code
     public function gw_login_instant_ui()
     {
-        include WP_GW_ROOT . '/templ/gw-instant-login.php';
+    	echo do_shortcode('[elementor-template id="821"]');
     }
 
     public function gw_update_contact_info(){

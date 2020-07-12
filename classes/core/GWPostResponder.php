@@ -22,6 +22,9 @@ class GWPostResponder
         add_action('admin_post_gw_upload_exam_results', array( $this, 'upload_exam_results'));
 
         // Upload data
+        add_action('admin_post_gw_upload_old_student', array( $this, 'upload_old_student'));
+
+        // Upload data
         add_action('admin_post_gw_upload_admission_info', array( $this, 'upload_admission_info'));
 
         // Update Settings Semester
@@ -46,14 +49,14 @@ class GWPostResponder
         add_filter('gw_format_date', array($this, 'format_date'));
         add_filter('gw_get_user', array($this, 'get_user'));
 
-        // Session Filters
-        add_filter('gw_session_validate', array( $this, 'session_validate' ));
-        add_filter('gw_session_set', array( $this, 'session_set' ), 10, 3);
-        add_filter('gw_session_reset', array( $this, 'session_reset' ));
-
-        // User Validation
-        add_action('gw_validate_login', array($this, 'validate_login',), 10, 2);
-        add_action('gw_validate_exam_status', array($this, 'validate_exam_status'));
+        // // Session Filters
+        // add_filter('gw_session_validate', array( $this, 'session_validate' ));
+        // add_filter('gw_session_set', array( $this, 'session_set' ), 10, 3);
+        // add_filter('gw_session_reset', array( $this, 'session_reset' ));
+        //
+        // // User Validation
+        // add_action('gw_validate_login', array($this, 'validate_login',), 10, 2);
+        // add_action('gw_validate_exam_status', array($this, 'validate_exam_status'));
     }
 
     public function sanitizer($success_callback, $error_callback, $type='login')
@@ -61,7 +64,7 @@ class GWPostResponder
         if ('POST' === $_SERVER['REQUEST_METHOD']) {
             if (isset($_POST['gw_'. $type .'_nonce'])) {
                 $get_referer_url = 'gw_' .  wp_get_referer();
-                if (wp_verify_nonce($_POST['gw_'. $type .'_nonce'], $get_referer_url)) {
+                if (wp_verify_nonce($_POST['gw_'. $type .'_nonce'], remove_query_arg( 'q', $get_referer_url))) {
                     return $success_callback();
                 }
                 return $error_callback('nonce_invalid');
@@ -104,15 +107,22 @@ class GWPostResponder
                                 $initial_user_data[0]->{'NAME_SUFFIX'}
                             ),
                             'SEX' => $initial_user_data[0]->{'SEX'},
-                            'EXAMINATION_DATE' => $initial_user_data[0]->{'EXAMINATION_DATE'},
-                            'EXAMINATION_TIME' => $initial_user_data[0]->{'EXAMINATION_TIME'},
-                            'EXAMINEE_NO' => $initial_user_data[0]->{'EXAMINEE_NO'},
                             'EXAM_STATUS' => $initial_user_data[0]->{'EXAM_STATUS'},
-                            'DEGREE_LEVEL' => $initial_user_data[0]->{'DEGREE_LEVEL'},
+                            'DEGREE_LEVEL' => preg_replace('/\b\d+\b/', '', $initial_user_data[0]->{'DEGREE_LEVEL'}),
                             'PERCENT' => str_replace("%", "", $initial_user_data[0]->{'PERCENT'}),
+                        	'TOTAL' => str_replace("%", "", $initial_user_data[0]->{'TOTAL'}),
                         );
-                        $user_data['STUDENT_TYPE'] = 'new';
-                        apply_filters('gw_session_set', $user_data, '/', ''); // Set session
+
+                        $user_id = $initial_user_data[0]->{'id'};
+
+                        // Set Auth Data
+                        do_action('gw_session_login_set_data', $user_id, 'new', $data_entry);
+                        do_action('gw_session_login_set_cookie');
+
+                        // Set User Data
+                        do_action('gw_session_user_set_data', $user_id, 'new', $user_data);
+                        do_action('gw_session_user_set_cookie');
+
                         GWUtility::_gw_redirect('pass_process', null, '/my/');
                     } else {
                         GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
@@ -128,7 +138,7 @@ class GWPostResponder
         );
     }
 
-    public function instant_login()
+    public function instant_login() // TODO: Integrate Old and new Student Transaction ID
     {
         $this->sanitizer(
             function () {
@@ -137,39 +147,92 @@ class GWPostResponder
                     $tc_id = sanitize_text_field($_POST['gw_tc_number']);
                     $data_table = new GWDataTable();
 
-                    $data_entry = $data_table->getLoginByTC($tc_id);
+                    $tc_type = strtoupper(substr($tc_id, 0, 3));
+                    if($tc_type == "TCO"){
+                      $data_entry = $data_table->getLoginByTC($tc_id, "old");
 
-                    $initial_user_data = apply_filters('gw_get_user', $data_entry);
+                      $record = $data_table->isOldStudentDataExist($data_entry);
 
-                    if (count($initial_user_data)!=0) {
+                      if ($record[0]->count!=0) {
+
+                        $user_id = $record[0]->id;
+
+                        $initial_user_data = $data_table->getOldStudentData($user_id);
+
                         $user_data = array(
-                            'ID' => $initial_user_data[0]->{'id'},
-                            'FIRST_NAME' => $initial_user_data[0]->{'FIRST_NAME'},
-                            'MIDDLE_NAME' => $initial_user_data[0]->{'MIDDLE_NAME'},
-                            'LAST_NAME' => $initial_user_data[0]->{'LAST_NAME'},
-                            'NAME_SUFFIX' => $initial_user_data[0]->{'NAME_SUFFIX'},
+                            'ID' => $initial_user_data->{'id'},
+                            'ID_NUMBER' => $initial_user_data->{'ID_NUMBER'},
+                            'FIRST_NAME' => $initial_user_data->{'FIRST_NAME'},
+                            'MIDDLE_NAME' => $initial_user_data->{'MIDDLE_NAME'},
+                            'LAST_NAME' => $initial_user_data->{'LAST_NAME'},
+                            'NAME_SUFFIX' => $initial_user_data->{'NAME_SUFFIX'},
                             'FULL_NAME' => sprintf(
                                 "%s %s %s %s",
-                                $initial_user_data[0]->{'FIRST_NAME'},
-                                $initial_user_data[0]->{'MIDDLE_NAME'},
-                                $initial_user_data[0]->{'LAST_NAME'},
-                                $initial_user_data[0]->{'NAME_SUFFIX'}
+                                $initial_user_data->{'FIRST_NAME'},
+                                $initial_user_data->{'MIDDLE_NAME'},
+                                $initial_user_data->{'LAST_NAME'},
+                                $initial_user_data->{'NAME_SUFFIX'}
                             ),
-                            'SEX' => $initial_user_data[0]->{'SEX'},
-                            'EXAMINATION_DATE' => $initial_user_data[0]->{'EXAMINATION_DATE'},
-                            'EXAMINATION_TIME' => $initial_user_data[0]->{'EXAMINATION_TIME'},
-                            'EXAMINEE_NO' => $initial_user_data[0]->{'EXAMINEE_NO'},
-                            'EXAM_STATUS' => $initial_user_data[0]->{'EXAM_STATUS'},
-                            'DEGREE_LEVEL' => $initial_user_data[0]->{'DEGREE_LEVEL'},
-                            'PERCENT' => str_replace("%", "", $initial_user_data[0]->{'PERCENT'}),
+                            'SEX' => $initial_user_data->{'SEX'},
+                            'DEGREE_LEVEL' => preg_replace('/\b\d+\b/', '', $initial_user_data->{'DEGREE_LEVEL'}),
                         );
-                        $user_data['STUDENT_TYPE'] = 'new';
-                        apply_filters('gw_session_set', $user_data, '/', ''); // Set session
+
+                        // Set Auth Data
+                        do_action('gw_session_login_set_data', $user_id, 'old', $data_entry);
+                        do_action('gw_session_login_set_cookie');
+
+                        // Set User Data
+                        do_action('gw_session_user_set_data', $user_id, 'old', $user_data);
+                        do_action('gw_session_user_set_cookie');
+
                         GWUtility::_gw_redirect('pass_process', null, '/my/');
+
+                      } else {
+                          GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
+                      }
+                    }elseif ($tc_type == "TCN") {
+                      $data_entry = $data_table->getLoginByTC($tc_id, "new");
+                      $initial_user_data = apply_filters('gw_get_user', $data_entry);
+
+                      if (count($initial_user_data)!=0) {
+                          $user_data = array(
+                              'ID' => $initial_user_data[0]->{'id'},
+                          	  'ID_NUMBER' => $initial_user_data[0]->{'ID_NUMBER'},
+                              'FIRST_NAME' => $initial_user_data[0]->{'FIRST_NAME'},
+                              'MIDDLE_NAME' => $initial_user_data[0]->{'MIDDLE_NAME'},
+                              'LAST_NAME' => $initial_user_data[0]->{'LAST_NAME'},
+                              'NAME_SUFFIX' => $initial_user_data[0]->{'NAME_SUFFIX'},
+                              'FULL_NAME' => sprintf(
+                                  "%s %s %s %s",
+                                  $initial_user_data[0]->{'FIRST_NAME'},
+                                  $initial_user_data[0]->{'MIDDLE_NAME'},
+                                  $initial_user_data[0]->{'LAST_NAME'},
+                                  $initial_user_data[0]->{'NAME_SUFFIX'}
+                              ),
+                              'SEX' => $initial_user_data[0]->{'SEX'},
+                              'EXAM_STATUS' => $initial_user_data[0]->{'EXAM_STATUS'},
+                              'DEGREE_LEVEL' => preg_replace('/\b\d+\b/', '', $initial_user_data[0]->{'DEGREE_LEVEL'}),
+                              'PERCENT' => str_replace("%", "", $initial_user_data[0]->{'PERCENT'}),
+                          );
+
+                          $user_id = $initial_user_data[0]->{'id'};
+
+                          // Set Auth Data
+                          do_action('gw_session_login_set_data', $user_id, 'new', $data_entry);
+                          do_action('gw_session_login_set_cookie');
+
+                          // Set User Data
+                          do_action('gw_session_user_set_data', $user_id, 'new', $user_data);
+                          do_action('gw_session_user_set_cookie');
+
+                          GWUtility::_gw_redirect('pass_process', null, '/my/');
+                      } else {
+                          GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
+                      }
                     } else {
-                        GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
+                      GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
                     }
-                } else {
+                    } else {
                     GWUtility::_gw_redirect($referer_page['page'], 417, "", wp_get_referer()); // All fields are reuired
                 }
             },
@@ -185,11 +248,63 @@ class GWPostResponder
     {
         $this->sanitizer(
             function () { // Success
-                print_r('Success');
+                $referer_page = GWUtility::_gw_parse_url(wp_get_referer());
+                if (isset($_POST['gw_id_number']) && isset($_POST['gw_last_name'])) {
+                  $data_table = new GWDataTable();
+
+                  $data_entry = array(
+                    "LAST_NAME"=> sanitize_text_field( $_POST['gw_last_name'] ),
+                    "ID_NUMBER"=> sanitize_text_field( $_POST['gw_id_number'] )
+                  );
+
+                  $record = $data_table->isOldStudentDataExist($data_entry);
+
+                  if ($record[0]->count!=0) {
+
+                    $user_id = $record[0]->id;
+
+                    $initial_user_data = $data_table->getOldStudentData($user_id);
+
+                    $user_data = array(
+                        'ID' => $initial_user_data->{'id'},
+                        'ID_NUMBER' => $initial_user_data->{'ID_NUMBER'},
+                        'FIRST_NAME' => $initial_user_data->{'FIRST_NAME'},
+                        'MIDDLE_NAME' => $initial_user_data->{'MIDDLE_NAME'},
+                        'LAST_NAME' => $initial_user_data->{'LAST_NAME'},
+                        'NAME_SUFFIX' => $initial_user_data->{'NAME_SUFFIX'},
+                        'FULL_NAME' => sprintf(
+                            "%s %s %s %s",
+                            $initial_user_data->{'FIRST_NAME'},
+                            $initial_user_data->{'MIDDLE_NAME'},
+                            $initial_user_data->{'LAST_NAME'},
+                            $initial_user_data->{'NAME_SUFFIX'}
+                        ),
+                        'SEX' => $initial_user_data->{'SEX'},
+                        'DEGREE_LEVEL' => preg_replace('/\b\d+\b/', '', $initial_user_data->{'DEGREE_LEVEL'}),
+                    );
+
+                    // Set Auth Data
+                    do_action('gw_session_login_set_data', $user_id, 'old', $data_entry);
+                    do_action('gw_session_login_set_cookie');
+
+                    // Set User Data
+                    do_action('gw_session_user_set_data', $user_id, 'old', $user_data);
+                    do_action('gw_session_user_set_cookie');
+
+                    GWUtility::_gw_redirect('pass_process', null, '/my/');
+
+                  } else {
+                      GWUtility::_gw_redirect($referer_page['page'], 404, "", wp_get_referer()); // User does not exists
+                  }
+                } else {
+                  GWUtility::_gw_redirect($referer_page['page'], 417, "", wp_get_referer()); // All fields are reuired
+                }
             },
-            function ($error) { // Error
-                print_r($error);
-            }
+            function ($e) { // Error
+                $referer_page = GWUtility::_gw_parse_url(wp_get_referer());
+                GWUtility::_gw_redirect($referer_page['page'], 400, "", wp_get_referer()); // Bad Request
+            },
+            'old_login'
         );
     }
 
@@ -224,74 +339,10 @@ class GWPostResponder
         return $data_source->getUser($data_entry);
     }
 
-    public function session_validate()
-    {
-        if (isset($_COOKIE['gw'])) {
-            try {
-                $raw = GWUtility::gw_decrypt_data(stripslashes($_COOKIE['gw']));
-                if (!empty(json_decode($raw)->{'EXAMINEE_NO'}) && !empty(json_decode($raw)->{'EXAM_STATUS'})) {
-                    apply_filters('gw_user_set', json_decode($raw));
-                    return true;
-                }
-            } catch (Exception $e) {
-                return false;
-            }
-        }
-        return false;
-    }
-
-    public function session_set($data, $scope='/', $expiration='')
-    {
-        if (empty($expiration)) {
-            $expiration = mktime(24, 0, 0); // The next day
-        }
-        setcookie(
-            'gw',
-            GWUtility::gw_encrypt_data(json_encode($data)),
-            $expiration,
-            $scope,
-            GWUtility::_gw_remove_http(get_site_url()),
-            false, // Only transmit on SSL connection
-            true  // Only accessible by http no js
-        );
-    }
-
-    public function session_reset()
-    {
-        unset($_COOKIE['gw']);
-        return apply_filters('gw_session_set', null, '/', time());
-    }
-
     public function format_date($string_date)
     {
         $date = date_create($string_date);
         return date_format($date, "n/j/Y");
-    }
-
-    public function validate_login($redirect_if_success=true, $redirect_if_fail=true)
-    {
-        $login_status = apply_filters('gw_session_validate', null);
-        if ($login_status) {
-            if ($redirect_if_success) {
-                GWUtility::_gw_redirect('pass_process', null, null);
-            }
-        } else {
-            if ($redirect_if_fail) {
-                GWUtility::_gw_redirect('login', null, null);
-            }
-        }
-    }
-
-    public function validate_exam_status($redirect_if_success=true)
-    {
-        $user_meta = apply_filters('gw_user_set', null);
-        if ($user_meta->{'EXAM_STATUS'} == 'PASSED') {
-            if ($redirect_if_success) {
-                GWUtility::_gw_redirect('pass_success', null, null);
-            }
-        } else {
-            GWUtility::_gw_redirect('pass_fail', null, null);
-        }
     }
 
     // No Priv Functions
@@ -301,22 +352,40 @@ class GWPostResponder
         //gw_student_update
         $this->sanitizer(
             function () { // Success
-                if (apply_filters('gw_session_validate', null)) {
+                if (apply_filters('gw_session_login_validate', null)) {
                     if (
                   isset($_POST['gw_student_update_email']) &&
                   isset($_POST['gw_student_update_phone'])
                 ) {
-                        $user_data = apply_filters('gw_current_user_login', null);
-                        $field_uid = $user_data->{'ID'};
+                        $field_obj = apply_filters('gw_session_login_validate', function ($raw) {
+                            return $raw;
+                        });
+                        $field_uid = $field_obj["uid"];
+                        $field_utyp = $field_obj["utyp"];
                         $field_email = sanitize_text_field($_POST['gw_student_update_email']);
                         $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
                         $field_address = sanitize_text_field($_POST['gw_student_update_address']);
 
                         $entry_manager = new GWEntriesManager($field_uid);
 
-                        $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
-                        $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
-                        $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
+                        $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email, $field_utyp);
+                        $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone, $field_utyp);
+                        $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address, $field_utyp);
+                    
+						if(!empty($field_email)){
+                        	// Resend transaction thru email if does exist
+                    		$content = GWUtility::_gw_render_shortcode('<div class="caldera-grid"><div class="alert alert-success">
+				        		Your information has been successfully submitted. An enrollment officer will contact you through the phone number you provided.
+				            	[elementor-template id="627"]
+				            	[elementor-template id="617"]
+				            	</div></div>');
+                        
+                        	$field_obj['uobj']['EMAIL_ADDRESS'] = $field_email;
+    
+    						// Mailer Service
+    						$mailer = new GWMailerService();
+    						$mailer->sendRequestStatus($field_obj['uobj'], $content);
+                        }
 
                         $url_components = parse_url(wp_get_referer());
                         parse_str($url_components['query'], $params);
@@ -344,12 +413,13 @@ class GWPostResponder
         //gw_student_update
         $this->sanitizer(
             function () { // Success
-                if (apply_filters('gw_session_validate', null)) {
+                if (apply_filters('gw_session_login_validate', null)) {
                     if (isset($_POST['gw_student_update'])) {
                         $data_array = $_POST['gw_student_update'];
                     }
 
                     if (
+                    isset($_POST['gw_student_typ']) &&
                     isset($data_array['last_name']) &&
                     isset($data_array['first_name']) &&
                     isset($data_array['birthdate']) &&
@@ -365,70 +435,102 @@ class GWPostResponder
                     isset($data_array['street'])
                   ) {
                         $formatted_date = date_format(date_create(sanitize_text_field($data_array['birthdate'])), "n/j/Y");
-                        // Examination Data Table
-                        $field_exam['LAST_NAME'] = sanitize_text_field($data_array['last_name']);
-                        $field_exam['FIRST_NAME'] = sanitize_text_field($data_array['first_name']);
-                        $field_exam['MIDDLE_NAME'] = sanitize_text_field($data_array['middle_name']);
-                        $field_exam['NAME_SUFFIX'] = sanitize_text_field($data_array['name_suffix']);
-                        $field_exam['BIRTHDATE'] = $formatted_date;
-                        $field_exam['SEX'] = sanitize_text_field($data_array['sex']);
-                        $field_exam['CONTACT_NUMBER'] = sanitize_text_field($data_array['contact_number']);
-                        $field_exam['EMAIL_ADDRESS'] = sanitize_text_field($data_array['email_address']);
-                        $field_exam['ADDRESS'] = sanitize_text_field($data_array['address']);
+
+                        // Student Information
+                        $field_entry['LAST_NAME'] = sanitize_text_field($data_array['last_name']);
+                        $field_entry['FIRST_NAME'] = sanitize_text_field($data_array['first_name']);
+                        $field_entry['MIDDLE_NAME'] = sanitize_text_field($data_array['middle_name']);
+                        $field_entry['NAME_SUFFIX'] = sanitize_text_field($data_array['name_suffix']);
+                        $field_entry['BIRTHDATE'] = $formatted_date;
+                        $field_entry['SEX'] = sanitize_text_field($data_array['sex']);
+                        $field_entry['CONTACT_NUMBER'] = sanitize_text_field($data_array['contact_number']);
+                        $field_entry['EMAIL_ADDRESS'] = sanitize_text_field($data_array['email_address']);
 
                         // Admission Data Table
-                        $field_admission['CITIZENSHIP'] = sanitize_text_field($data_array['citizenship']);
-                        $field_admission['BIRTHDATE'] = $formatted_date;
-                        $field_admission['CIVIL_STATUS'] = sanitize_text_field($data_array['civil_status']);
-                        $field_admission['PROVINCE'] = sanitize_text_field($data_array['province']);
-                        $field_admission['ZIP_CODE'] = sanitize_text_field($data_array['zip_code']);
-                        $field_admission['TCM'] = sanitize_text_field($data_array['tcm']);
-                        $field_admission['BRGY'] = sanitize_text_field($data_array['brgy']);
-                        $field_admission['STREET'] = sanitize_text_field($data_array['street']);
+                        $field_entry['CITIZENSHIP'] = sanitize_text_field($data_array['citizenship']);
+                        $field_entry['BIRTHDATE'] = $formatted_date;
+                        $field_entry['CIVIL_STATUS'] = sanitize_text_field($data_array['civil_status']);
+                        $field_entry['PROVINCE'] = sanitize_text_field($data_array['province']);
+                        $field_entry['ZIP_CODE'] = sanitize_text_field($data_array['zip_code']);
+                        $field_entry['TCM'] = sanitize_text_field($data_array['tcm']);
+                        $field_entry['BRGY'] = sanitize_text_field($data_array['brgy']);
+                        $field_entry['STREET'] = sanitize_text_field($data_array['street']);
+                    	$field_entry['ADDRESS'] = sprintf("%s. %s, %s %s %s", 
+                                                           $field_entry['STREET'],
+                                                           $field_entry['BRGY'],
+                                                           $field_entry['TCM'],
+                                                           $field_entry['PROVINCE'],
+                                                           $field_entry['ZIP_CODE']
+                                                          );
 
                         $data_table = new GWDataTable();
 
-                        $user_data = apply_filters('gw_current_user_login', null);
+                        $user_data = apply_filters('gw_session_user_validate', function ($raw) {
+                            return $raw;
+                        });
 
-                        $user_dataset = $data_table->getRelatedID($user_data->{'ID'});
+                        $user_id = $user_data["uid"];
+                        $user_typ = $user_data["utyp"];
 
-                        if (count($user_dataset) < 1) {
-                            $response = array(
-                        "status"=>"error",
-                        "confirmation"=>false,
-                        "messsage"=>"No related information could be retrieve"
-                      );
-                            $this->json_responder($response);
-                        } else {
-                            $user_exam_id = $user_dataset[0]['exam_id'];
-                            $user_admission_id = $user_dataset[0]['admission_id'];
+                        if($user_typ == "new"){
+                          $user_dataset = $data_table->getRelatedID($user_id);
+
+                          if (count($user_dataset) < 1) {
+                              $response = array(
+                                "status"=>"error",
+                                "confirmation"=>false,
+                                "messsage"=>"No related information could be retrieve"
+                              );
+                              $this->json_responder($response);
+                          } else {
+                              $user_exam_id = $user_dataset[0]['exam_id'];
+                              $user_admission_id = $user_dataset[0]['admission_id'];
+                          }
+                          $updated_count = 0;
+                          $updated_count += $data_table->updateExamStudentInformation($user_exam_id, $field_entry);
+                          $updated_count += $data_table->updateAdmissionStudentInformation($user_admission_id, $field_entry);
+
+                        }else{
+                          $updated_count = 0;
+                          $updated_count += $data_table->updateOldStudentInformation($user_id, $field_entry);
+                          $updated_count += $data_table->generateTempPassword($user_id, $user_typ);
                         }
-                        $updated_count = 0;
-                        $updated_count += $data_table->updateExamStudentInformation($user_exam_id, $field_exam);
-                        $updated_count += $data_table->updateAdmissionStudentInformation($user_admission_id, $field_admission);
-                        $updated_count += $data_table->generateID($user_data->{'ID'}); // Generate ID
+
+                        $data_table->setConfirmation($user_id, true, $user_typ);
+                        	
+                    	// Resend transaction thru email if does exist
+                    	$content = GWUtility::_gw_render_shortcode('<div class="gw-account">[elementor-template id="941"]</div>');
+                        
+                        $user_data['uobj']['EMAIL_ADDRESS'] = array(
+                        	$field_entry['EMAIL_ADDRESS'],
+                        	sprintf("%s@student.buksu.edu.ph", $user_data['uobj']['ID_NUMBER'])
+                        );
+    
+    					// Mailer Service
+    					$mailer = new GWMailerService();
+    					$mailer->sendAccountCredential($user_data, $content);
 
                         // Validation Log Format
-                        $data_table->insertLog($user_data->{'ID'}, 'info_confirmation', json_encode(
+                        $data_table->insertLog($user_id, 'info_confirmation', json_encode(
                             array(
-                        "updated_count" =>  $updated_count
-                      )
+                              "updated_count" =>  $updated_count,
+                              "type"=>$user_typ
+                            )
                         ));
 
-                        $data_table->setConfirmation($user_data->{'ID'}, true);
-
                         $response = array(
-                      "status"=>"success",
-                      "confirmation"=>true,
-                      "updated_count"=>$updated_count
-                    );
+                          "status"=>"success",
+                          "confirmation"=>true,
+                          "updated_count"=>$updated_count
+                        );
                         $this->json_responder($response);
-                    } else {
-                        $response = array(
-                      "status"=>"error",
-                      "confirmation"=>false,
-                      "messsage"=>"Please fill in required fields"
-                    );
+
+                        } else {
+                          $response = array(
+                            "status"=>"error",
+                            "confirmation"=>false,
+                            "messsage"=>"Please fill in required fields"
+                        );
                         $this->json_responder($response);
                     }
                 } else {
@@ -489,7 +591,7 @@ class GWPostResponder
                             if (!($dataLen == 14)) {
                                 continue;
                             }
-
+						
                             $data_entry['EXAMINEE_NO'] = trim($csvData[0]);
                             $data_entry['EXAMINATION_DATE'] = trim($csvData[1]);
                             $data_entry['EXAMINATION_TIME'] = trim($csvData[2]);
@@ -509,7 +611,8 @@ class GWPostResponder
 
                             // Duplicate Checks Action
                             $record = $data_query->isExamResultDataExist($data_entry);
-
+							
+                        	//print_r($record);
                             if ($record[0]->count==0) {
                                 if (!empty($data_entry['EXAMINEE_NO']) &&
                                   !empty($data_entry['EXAMINATION_DATE']) &&
@@ -525,8 +628,9 @@ class GWPostResponder
                                   !empty($data_entry['DEGREE_LEVEL'])
                               ) {
                                     $result = $data_query->insertExamResult($data_entry, $data_entry['DEGREE_LEVEL']);
-
+                                
                                     if ($result['id'] > 0) {
+                                    	$data_table->generateID($result['id']); // Generate ID
                                         $totalInserted++;
                                     }
                                 }
@@ -555,6 +659,91 @@ class GWPostResponder
                 print_r($e);
             },
             'upload_exam'
+        );
+    }
+
+    public function upload_old_student()
+    {
+        $this->sanitizer(
+            function () { // Success
+                if (current_user_can('edit_users') || current_user_can('manage_exam')) {
+                    // File extension
+                    $extension = pathinfo($_FILES['gw-import-file']['name'], PATHINFO_EXTENSION);
+                    // If file extension is 'csv'
+                    if (!empty($_FILES['gw-import-file']['name']) && $extension == 'csv') {
+                        $totalInserted = 0;
+
+                        // Open file in read mode
+                        $csvFile = fopen($_FILES['gw-import-file']['tmp_name'], 'r');
+
+                        fgetcsv($csvFile); // Skipping header row
+
+                        $data_query = new GWDataTable();
+
+                        // Read file
+                        while (($csvData = fgetcsv($csvFile)) !== false) {
+                            $csvData = array_map("utf8_encode", $csvData);
+
+                            // Row column length
+                            $dataLen = count($csvData);
+
+                            if (!($dataLen == 11)) {
+                                continue;
+                            }
+
+                            $data_entry['ID_NUMBER'] = trim($csvData[0]);
+                            $data_entry['EMAIL_ADDRESS'] = trim($csvData[1]);
+                            $data_entry['LAST_NAME'] = GWUtility::_format_N(trim($csvData[2]));
+                            $data_entry['FIRST_NAME'] = GWUtility::_format_N(trim($csvData[3]));
+                            $data_entry['MIDDLE_NAME'] = GWUtility::_format_N(trim($csvData[4]));
+                            $data_entry['NAME_SUFFIX'] = trim($csvData[5]);
+                            $data_entry['SEX'] = trim($csvData[6]);
+                            $data_entry['BIRTHDATE'] = trim($csvData[7]);
+                            $data_entry['CONTACT_NUMBER'] = trim($csvData[8]);
+                            $data_entry['DEGREE_LEVEL'] = trim($csvData[9]);
+                            $data_entry['COURSE'] = trim($csvData[10]);
+
+
+                            // Duplicate Checks Action
+                            $record = $data_query->isOldStudentDataExist($data_entry);
+
+                            if ($record[0]->count==0) {
+                                if (!empty($data_entry['ID_NUMBER']) &&
+                                  !empty($data_entry['LAST_NAME']) &&
+                                  !empty($data_entry['DEGREE_LEVEL']) &&
+                                  !empty($data_entry['COURSE']) &&
+                                  !empty($data_entry['FIRST_NAME'])
+                              ) {
+                                    $result = $data_query->insertOldStudent($data_entry, $data_entry['DEGREE_LEVEL']);
+                                    if ($result['id'] > 0) {
+                                        $totalInserted++;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Validation Log Format
+                        $data_query = new GWDataTable();
+                        $data_query->insertLog(get_current_user_id(), 'upload', json_encode(
+                            array(
+                          "type" =>  "old_studen",
+                          "filename" =>  $_FILES['gw-import-file']['name']
+                        )
+                        ));
+
+                        echo "<h3 style='color: green;'>Total record Inserted : ".$totalInserted."</h3>";
+                    } else {
+                        print_r('Extension Invalid');
+                    }
+                } else {
+                    // Not Allowed
+                    print_r('Not Allowed');
+                }
+            },
+            function ($e) { // Post Error
+                print_r($e);
+            },
+            'upload_old_student'
         );
     }
 
@@ -660,6 +849,7 @@ class GWPostResponder
                 if (current_user_can('edit_users') || current_user_can('manage_exam')) {
                     if (
                   isset($_POST['gw_student_uid']) &&
+                  isset($_POST['gw_student_utyp']) &&
                   isset($_POST['gw_student_update_email']) &&
                   isset($_POST['gw_student_update_phone'])
                 ) {
@@ -667,14 +857,14 @@ class GWPostResponder
                         $field_email = sanitize_text_field($_POST['gw_student_update_email']);
                         $field_phone = sanitize_text_field($_POST['gw_student_update_phone']);
                         $field_address = sanitize_text_field($_POST['gw_student_update_address']);
-
+                        $user_type = sanitize_text_field($_POST['gw_student_utyp']);
 
                         $user = wp_get_current_user();
                         $entry_manager = new GWEntriesManager($user->ID);
 
-                        $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email);
-                        $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone);
-                        $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address);
+                        $updated_count+= $entry_manager->update_entry_email($field_uid, $field_email, $user_type);
+                        $updated_count+= $entry_manager->update_entry_phone($field_uid, $field_phone, $user_type);
+                        $updated_count+= $entry_manager->update_entry_address($field_uid, $field_address, $user_type);
 
                         $url_components = parse_url(wp_get_referer());
                         parse_str($url_components['query'], $params);
@@ -705,10 +895,12 @@ class GWPostResponder
                 if (current_user_can('edit_users') || current_user_can('manage_exam')) {
                     if (
                   isset($_POST['gw_student_uid']) &&
+                  isset($_POST['gw_student_typ']) &&
                   isset($_POST['gw_enrollment_officer_feedback'])
                 ) {
                         $field_uid = sanitize_text_field($_POST['gw_student_uid']);
-                        $gw_enrollment_officer_feedback = sanitize_text_field($_POST['gw_enrollment_officer_feedback']);
+                        $user_type = sanitize_text_field($_POST['gw_student_typ']);
+                        $gw_enrollment_officer_feedback = wp_kses_post($_POST['gw_enrollment_officer_feedback']);
                         $submit_action = array_keys($_POST['submit']);
                         $action = sanitize_text_field($submit_action[0]);
 
@@ -717,15 +909,22 @@ class GWPostResponder
                         $entry_manager = new GWEntriesManager($user->ID);
 
                         $wp_upload_dir = wp_get_upload_dir()['basedir'];
-                        $file_directory = $wp_upload_dir . '/user-requirements/'. $field_uid;
+                        $file_directory = "{$wp_upload_dir}/user-requirements/{$user_type}/{$field_uid}";
+                        $updated_count = 0;
+
+                        if (!file_exists($file_directory)) {
+                            mkdir($file_directory, 0755, true);
+                        }
 
                         if (!empty($_FILES['gw-upload-cor'])) {
                             // Save file
 
                             $info = pathinfo($_FILES['gw-upload-cor']['name']);
-                            $ext = $info['extension']; // get the extension of the file
-                            $newname = "cor.".$ext;
-                            move_uploaded_file($_FILES['gw-upload-cor']['tmp_name'], $file_directory .'/'.$newname);
+                            if(!empty($info['filename'])){
+                              $ext = $info['extension']; // get the extension of the file
+                              $newname = "cor.".$ext;
+                              move_uploaded_file($_FILES['gw-upload-cor']['tmp_name'], $file_directory .'/'.$newname);
+                            }
                         }
 
                         if ($action == 'denied') { // Delete all requirements
@@ -733,16 +932,36 @@ class GWPostResponder
                             // Deleting all the files in the list
                             foreach ($files as $file) {
                                 if (is_file($file)) {
-                                  // Delete the given file
+                                    // Delete the given file
                                     unlink($file);
                                 }
                             }
 
-                            $entry_manager->update_requirements($field_uid, null);
+                            $entry_manager->update_requirements($field_uid, null, $user_type);
                         }
 
-                        $updated_count+= $entry_manager->update_entry_feedback($field_uid, $gw_enrollment_officer_feedback);
-                        $updated_count+= $entry_manager->validate_entry($field_uid, strtolower($action)); // Action Type
+                        $updated_count+= $entry_manager->update_entry_feedback($field_uid, $gw_enrollment_officer_feedback, $user_type);
+
+
+                        if($action == 'approved' || $action == 'denied'){
+                          $updated_count+= $entry_manager->validate_entry($field_uid, strtolower($action), $user_type); // Action Type
+                        }
+                    	
+                    	$data_table = new GWDataTable();
+                    	
+                    	if($user_type == "old"){
+                        	$initial_user_data = $data_table->getOldStudentData($field_uid);
+							$student_data = GWUtility::gw_object_to_array($initial_user_data);
+                        }else if($user_type == "new"){
+							$tc_id = $data_table->getTC($field_uid)['REQUESTED_TRANSACTION_ID'];
+                        	$data_entry = $data_table->getLoginByTC($tc_id, "new");
+                      		$initial_user_data = apply_filters('gw_get_user', $data_entry);
+							$student_data = $initial_user_data[0];
+                        }
+                    
+    					// Mailer Service
+    					$mailer = new GWMailerService();
+    					$mailer->sendRequestUpdate($student_data, $action);
 
                         $url_components = parse_url(wp_get_referer());
                         parse_str($url_components['query'], $params);
