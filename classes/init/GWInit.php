@@ -49,6 +49,11 @@ class GWInit
         add_filter('plugin_action_links_' . WP_GW_BASE_NAME, array( $this, 'wp_gw_plugin_action_links' ));
 
         //$this->wp_gw_activate(); //Force Upgrade Database
+        //
+        //$db = new GWDataTable();
+    	//$db->truncateExamResults();
+    	//$db->genIDNumberNewStudents();
+
     }
 
     /** Singleton instance */
@@ -68,12 +73,17 @@ class GWInit
     {
         GWUtility::instance()->load_classes(array(
             'classes/core/GWDataTable.php',
+            'classes/core/GWMailerService.php',
+            'classes/core/GWSession.php',
+            'classes/core/GWValidation.php',
+            'classes/core/GWCourses.php',
             'classes/core/GWShortCodes.php',
             'classes/core/GWPostResponder.php',
             'classes/core/GWEntriesManager.php',
             'classes/core/GWFrontEnd.php',
             'classes/views/GWTabs.php',
-            'classes/views/GWEntriesTable.php',
+            'classes/views/GWEntriesNewStudentTable.php',
+            'classes/views/GWEntriesOldStudentTable.php',
             'overrides/caldera-form-hooks.php'
         ));
     }
@@ -86,6 +96,8 @@ class GWInit
     {
         $db = new GWDataTable();
         $db->install();
+    	//$db->truncateExamResults();
+        //$db->truncateOldStudent();
     }
 
     /**
@@ -128,7 +140,7 @@ class GWInit
     {
         $plugin_error = GWUtility::instance()->admin_notice(array(
             'type' => 'error',
-            'message' => 'WP QR Pass requires Caldera Forms plugin to be installed and activated.'
+            'message' => 'Gateway BukSU requires Caldera Forms plugin to be installed and activated.'
         ));
         echo $plugin_error;
     }
@@ -146,18 +158,45 @@ class GWInit
             exit;
         }
 
-        $hook = add_menu_page(
-            __('Exam Results', 'wp-gw'),
-            __('Exam Results', 'wp-gw'),
+        add_menu_page(
+            __('My Dashboard', 'wp-gw'),
+            __('My Dashboard', 'wp-gw'),
             'manage_exam',
-            'gw-exam-results-manager',
-            array( $admin_page, 'gw_exam_result_manager_contents' ),
+            'gw-pre-listing',
+            array( $admin_page, 'gw_pre_listing' ),
             'dashicons-schedule',
             3
         );
 
+        $hook_new_student = add_submenu_page(
+            'gw-pre-listing',
+            __('Pre Listing (New Student)', 'wp-gw'),
+            __('New Student', 'wp-gw'),
+            'manage_exam',
+            'gw-pre-listing-new',
+            array( $admin_page, 'gw_pre_listing_new' )
+        );
+
+        $hook_old_student = add_submenu_page(
+            'gw-pre-listing',
+            __('Pre Listing (Old Student)', 'wp-gw'),
+            __('Old Student', 'wp-gw'),
+            'manage_exam',
+            'gw-pre-listing-old',
+            array( $admin_page, 'gw_pre_listing_old' )
+        );
+
         add_submenu_page(
-            'gw-exam-results-manager',
+            'gw-pre-listing',
+            __('Upload Old Student', 'wp-gw'),
+            __('Upload Old Student', 'wp-gw'),
+            'manage_options',
+            'gw-upload-old-student',
+            array( $admin_page, 'gw_upload_old_student' )
+        );
+
+        add_submenu_page(
+            'gw-pre-listing',
             __('Upload Exam Results', 'wp-gw'),
             __('Upload Exam Results', 'wp-gw'),
             'manage_options',
@@ -166,7 +205,7 @@ class GWInit
         );
 
         add_submenu_page(
-            'gw-exam-results-manager',
+            'gw-pre-listing',
             __('Upload Admission Info', 'wp-gw'),
             __('Upload Admission Info', 'wp-gw'),
             'manage_options',
@@ -175,7 +214,7 @@ class GWInit
         );
 
         add_submenu_page(
-            'gw-exam-results-manager',
+            'gw-pre-listing',
             __('Semester Settings', 'wp-gw'),
             __('Semester Settings', 'wp-gw'),
             'manage_options',
@@ -183,25 +222,58 @@ class GWInit
             array( $admin_page, 'gw_settings_semester' )
         );
 
-        add_action("load-$hook", array( $this, 'wp_gw_add_options'));
+      //  add_action("load-$hook", array( $this, 'wp_gw_add_options')); // Depracate
+
+        // New Hooks for Student Variations
+        add_action("load-$hook_new_student", array( $this, 'gw_new_student_options'));
+        add_action("load-$hook_old_student", array( $this, 'gw_old_student_options'));
+
     }
 
-    /**
-     * Form Entries table options
-     */
-    public function wp_gw_add_options()
+    public function gw_new_student_options()
     {
-        global $gwEntriesTable;
+      global $gwEntriesNewStudentTable;
 
-        $option = 'per_page';
-        $args = array(
-            'label' => 'Exam Results',
-            'default' => 30,
-            'option' => 'entries_per_page'
-        );
-        add_screen_option($option, $args);
-        $gwEntriesTable = new GWEntriesTable();
+      $option = 'per_page';
+      $args = array(
+          'label' => 'Pre Listing - New Students',
+          'default' => 30,
+          'option' => 'new_entries_per_page'
+      );
+      add_screen_option($option, $args);
+      $gwEntriesNewStudentTable = new GWEntriesNewStudentTable();
     }
+
+    public function gw_old_student_options()
+    {
+      global $gwEntriesOldStudentTable;
+
+      $option = 'per_page';
+      $args = array(
+          'label' => 'Pre Listing - Old Student',
+          'default' => 30,
+          'option' => 'old_entries_per_page'
+      );
+      add_screen_option($option, $args);
+      $gwEntriesOldStudentTable = new GWEntriesOldStudentTable();
+    }
+
+    // /**
+    //  * Form Entries table options
+    //  */
+    // public function wp_gw_add_options()
+    // {
+    //     global $gwEntriesTable; // Deprecate
+    //
+    //     $option = 'per_page';
+    //     $args = array(
+    //         'label' => 'Pre Listing',
+    //         'default' => 30,
+    //         'option' => 'entries_per_page'
+    //     );
+    //     add_screen_option($option, $args);
+    //     $gwEntriesTable = new GWEntriesTable();
+    // }
 
     /**
      * Set form entry table options
@@ -239,20 +311,8 @@ class GWInit
     public function load_gw_admin_plugin_scripts($hook)
     {
 
-        // Load Settings Tab Assets
-        if ($hook == 'entries-manager_page_gw-settings' && isset($_REQUEST['tab'])) {
-            switch ($_REQUEST['tab']) {
-                case 'response':
-                    wp_enqueue_style('gw-admin-form-response');
-                    wp_enqueue_script('gw-admin-form-response');
-                    break;
-                default:
-            }
-            return;
-        }
-
         // Load Default form entry manager
-        if ($hook != 'toplevel_page_gw-exam-results-manager' && $hook != 'entries-manager_page_gw-email-settings') {
+        if (!($hook == 'my-dashboard_page_gw-pre-listing-new' || $hook == 'my-dashboard_page_gw-pre-listing-old')) {
             return;
         }
 
@@ -294,8 +354,15 @@ class GWInit
                     die();
                 }
 
+                $user_type = "new";
+
                 $wp_upload_dir = wp_get_upload_dir()['basedir'];
-                $upload_directory = $wp_upload_dir . '/user-requirements/'. $user_id .'';
+                $upload_directory = "{$wp_upload_dir}/user-requirements/{$user_type}/{$user_id}";
+
+                if(!file_exists($upload_directory)){
+                  $user_type = "old";
+                  $upload_directory = "{$wp_upload_dir}/user-requirements/{$user_type}/{$user_id}";
+                }
 
                 $file_link = $upload_directory . "/" . $filename;
                 if (is_file($file_link)) {

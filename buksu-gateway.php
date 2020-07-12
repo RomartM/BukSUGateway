@@ -18,6 +18,8 @@ if (! defined( 'ABSPATH' ) ){
 define( 'WP_GW_VERSION', '1.0' );
 define( 'WP_GW_TABLE_LOG_VERSION', '1.0' );
 define( 'WP_GW_TABLE_EXAM_RESULT_VERSION', '1.0' );
+define( 'WP_GW_TABLE_NEW_STUDENT_VERSION', '1.0' ); // Replacement for exam results
+define( 'WP_GW_TABLE_OLD_STUDENT_VERSION', '1.0' );
 define( 'WP_GW_TABLE_ADMISSION_INFO_VERSION', '1.0' );
 define( 'WP_GW_ROOT', dirname( __FILE__ ) );
 define( 'WP_GW_URL', plugins_url( '/', __FILE__ ) );
